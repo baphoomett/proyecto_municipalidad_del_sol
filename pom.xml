@@ -1,0 +1,17 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>muni_del_valle</groupId>
+    <artifactId>proyecto_municipalidad_del_sol</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>ms_usuarios</module>
+        <module>ms_reportes</module>
+        <module>ms_monitoreo</module>
+        <module>ms_alertas</module>
+        <module>ms_integracion</module>
+    </modules>
+
+</project>
