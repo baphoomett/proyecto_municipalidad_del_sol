@@ -1,4 +1,4 @@
-version: '3.8'
+
 services:
   postgres_ms_usuarios:
     image: postgres:15
@@ -11,7 +11,8 @@ services:
     ports:
       - "5432:5432"
     networks:
-      - municipalidad_net
+      municipalidad_net:
+        ipv4_address: 172.20.0.2
 
   ms_usuarios:
     build:
@@ -26,7 +27,8 @@ services:
     ports:
       - "8084:8080"
     networks:
-      - municipalidad_net
+      municipalidad_net:
+        ipv4_address: 172.20.0.10
 
   postgres_ms_reportes:
     image: postgres:15
@@ -39,7 +41,8 @@ services:
     ports:
       - "5433:5432"
     networks:
-      - municipalidad_net
+      municipalidad_net:
+        ipv4_address: 172.20.0.3
 
   ms_reportes:
     build:
@@ -57,7 +60,8 @@ services:
     ports:
       - "8081:8080"
     networks:
-      - municipalidad_net
+      municipalidad_net:
+        ipv4_address: 172.20.0.11
 
   postgres_ms_monitoreo:
     image: postgis/postgis:15-3.3
@@ -70,7 +74,8 @@ services:
     ports:
       - "5434:5432"
     networks:
-      - municipalidad_net
+      municipalidad_net:
+        ipv4_address: 172.20.0.4
 
   ms_monitoreo:
     build:
@@ -86,9 +91,10 @@ services:
     depends_on:
       - postgres_ms_monitoreo
     ports:
-      - "8082:8080"
+      - "8182:8080"
     networks:
-      - municipalidad_net
+      municipalidad_net:
+        ipv4_address: 172.20.0.12
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -99,7 +105,8 @@ services:
       - "5672:5672"
       - "15672:15672"
     networks:
-      - municipalidad_net
+      municipalidad_net:
+        ipv4_address: 172.20.0.7
 
   postgres_ms_alertas:
     image: postgres:15
@@ -112,7 +119,8 @@ services:
     ports:
       - "5435:5432"
     networks:
-      - municipalidad_net
+      municipalidad_net:
+        ipv4_address: 172.20.0.5
 
   ms_alertas:
     build:
@@ -123,7 +131,6 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_HOST: rabbitmq
-      # MailHog for local SMTP capture
       SPRING_MAIL_HOST: mailhog
       SPRING_MAIL_PORT: 1025
     depends_on:
@@ -133,7 +140,8 @@ services:
     ports:
       - "8083:8080"
     networks:
-      - municipalidad_net
+      municipalidad_net:
+        ipv4_address: 172.20.0.13
 
   ms_integracion:
     build:
@@ -149,16 +157,17 @@ services:
     ports:
       - "8090:8090"
     networks:
-      - municipalidad_net
+      municipalidad_net:
+        ipv4_address: 172.20.0.14
 
   mailhog:
     image: mailhog/mailhog
     ports:
-      - "1025:1025" # SMTP
-      - "8025:8025" # Web UI
+      - "1025:1025"
+      - "8025:8025"
     networks:
-      - municipalidad_net
-
+      municipalidad_net:
+        ipv4_address: 172.20.0.6
 
   api_gateway:
     build:
@@ -170,7 +179,6 @@ services:
       JVM_OPTS: "-Djava.net.preferIPv4Stack=true"
     dns:
       - 127.0.0.11
-
     depends_on:
       - ms_usuarios
       - ms_reportes
@@ -180,7 +188,8 @@ services:
     ports:
       - "8085:8085"
     networks:
-      - municipalidad_net
+      municipalidad_net:
+        ipv4_address: 172.20.0.20
 
 volumes:
   pgdata_usuarios:
@@ -192,3 +201,6 @@ volumes:
 networks:
   municipalidad_net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
