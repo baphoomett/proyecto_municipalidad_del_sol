@@ -14,13 +14,13 @@ public class GatewayConfig {
                 .route("ms_usuarios", r -> r.path("/api/auth/**")
                     .uri("http://172.20.0.10:8080"))
                 .route("ms_reportes", r -> r.path("/api/reports/**")
-                    .uri("http://172.20.0.12:8080"))
-                .route("ms_monitoreo", r -> r.path("/api/monitor/**")
-                    .uri("http://172.20.0.8:8080"))
-                .route("ms_alertas", r -> r.path("/api/alerts/**")
                     .uri("http://172.20.0.11:8080"))
+                .route("ms_monitoreo", r -> r.path("/api/monitor/**")
+                    .uri("http://172.20.0.12:8080"))
+                .route("ms_alertas", r -> r.path("/api/alerts/**")
+                    .uri("http://172.20.0.13:8080"))
                 .route("ms_integracion", r -> r.path("/api/integration/**")
-                    .uri("http://172.20.0.9:8090"))
+                    .uri("http://172.20.0.14:8090"))
                 .build();
     }
 }
