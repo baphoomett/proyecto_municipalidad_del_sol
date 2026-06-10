@@ -191,6 +191,22 @@ services:
       municipalidad_net:
         ipv4_address: 172.20.0.20
 
+
+  bff:
+      build:
+        context: ./bff
+      environment:
+        SPRING_APPLICATION_NAME: bff
+        SERVER_PORT: 8086
+        API_GATEWAY_URL: http://172.20.0.20:8085
+      depends_on:
+        - api_gateway
+      ports:
+        - "8086:8086"
+      networks:
+        municipalidad_net:
+          ipv4_address: 172.20.0.21
+
 volumes:
   pgdata_usuarios:
   pgdata_reportes:

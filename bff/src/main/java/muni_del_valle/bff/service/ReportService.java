@@ -1,0 +1,34 @@
+package muni_del_valle.bff.service;
+
+import muni_del_valle.bff.dto.ReportDto;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+@Service
+public class ReportService {
+
+    private final RestTemplate restTemplate;
+    private final String gatewayUrl;
+
+    public ReportService(RestTemplate restTemplate, @Qualifier("gatewayUrl") String gatewayUrl) {
+        this.restTemplate = restTemplate;
+        this.gatewayUrl = gatewayUrl;
+    }
+
+    public ResponseEntity<?> createReport(ReportDto dto, String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token);
+        HttpEntity<ReportDto> request = new HttpEntity<>(dto, headers);
+        return restTemplate.postForEntity(gatewayUrl + "/api/reports", request, Object.class);
+    }
+
+    public ResponseEntity<?> getReports(String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<?> request = new HttpEntity<>(headers);
+        return restTemplate.exchange(gatewayUrl + "/api/reports", HttpMethod.GET, request, Object.class);
+    }
+}
