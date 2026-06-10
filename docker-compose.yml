@@ -133,6 +133,7 @@ services:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_MAIL_HOST: mailhog
       SPRING_MAIL_PORT: 1025
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
     depends_on:
       - postgres_ms_alertas
       - rabbitmq

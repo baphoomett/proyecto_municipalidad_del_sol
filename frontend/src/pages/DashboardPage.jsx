@@ -31,7 +31,7 @@ export default function DashboardPage() {
             <h3>🗺️ Mapa</h3>
             <p>Visualizar focos activos</p>
           </div>
-          <div style={styles.card}>
+          <div style={styles.card} onClick={() => navigate('/alerts')}>
             <h3>🔔 Alertas</h3>
             <p>Sistema de notificaciones</p>
           </div>

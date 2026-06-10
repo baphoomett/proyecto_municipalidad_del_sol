@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ReportsPage from './pages/ReportsPage';
 import MapPage from './pages/MapPage';
+import AlertsPage from './pages/AlertsPage';
 
 const ProtectedRoute = ({ children }) => {
   const { token } = useAuth();
@@ -27,6 +28,11 @@ export default function App() {
       <Route path="/map" element={
         <ProtectedRoute>
           <MapPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/alerts" element={
+        <ProtectedRoute>
+          <AlertsPage />
         </ProtectedRoute>
       } />
     </Routes>
