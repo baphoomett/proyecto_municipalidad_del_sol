@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import api from '../services/api';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import Footer from '../components/Footer';
 
 // Fix icono por defecto de leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -79,6 +80,7 @@ export default function MapPage() {
           </MapContainer>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

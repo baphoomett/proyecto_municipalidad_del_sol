@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import Footer from '../components/Footer';
 
 export default function ReportsPage() {
   const [reports, setReports] = useState([]);
@@ -51,8 +52,8 @@ export default function ReportsPage() {
   };
 
   const getStatusColor = (status) => {
-    if (status === 'ACTIVE') return '#e63946';
-    if (status === 'RESOLVED') return '#2a9d8f';
+    if (status === 'ACTIVO') return '#e63946';
+    if (status === 'RESUELTO') return '#2a9d8f';
     return '#f4a261';
   };
 
@@ -156,6 +157,7 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

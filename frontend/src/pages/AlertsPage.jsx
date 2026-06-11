@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import Footer from '../components/Footer';
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState([]);
@@ -39,7 +40,7 @@ export default function AlertsPage() {
   return (
     <div style={styles.container}>
       <nav style={styles.navbar}>
-        <h2 style={styles.logo} onClick={() => navigate('/dashboard')}>🔥 Valle del Sol</h2>
+        <h2 style={styles.logo} onClick={() => navigate('/dashboard')}>🔥 Municipalidad Valle del Sol</h2>
         <div style={styles.navLinks}>
           <button style={styles.navBtn} onClick={() => navigate('/dashboard')}>Dashboard</button>
           <button style={styles.navBtn} onClick={() => navigate('/reports')}>Reportes</button>
@@ -50,7 +51,7 @@ export default function AlertsPage() {
 
       <div style={styles.content}>
         <h1 style={styles.title}>🔔 Sistema de Alertas</h1>
-        <p style={styles.subtitle}>{alerts.length} alertas registradas</p>
+        <p style={styles.subtitle}>{alerts.length} Alertas registradas</p>
 
         {loading ? (
           <p style={styles.loading}>Cargando alertas...</p>
@@ -79,7 +80,7 @@ export default function AlertsPage() {
                   <span style={styles.meta}>📋 Reporte #{alert.reportId}</span>
                   <span style={{
                     ...styles.statusBadge,
-                    backgroundColor: alert.status === 'ACTIVE' ? '#e63946' : '#2a9d8f'
+                    backgroundColor: alert.status === 'ACTIVA' ? '#e63946' : '#2a9d8f'
                   }}>
                     {alert.status}
                   </span>
@@ -89,6 +90,7 @@ export default function AlertsPage() {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 }
