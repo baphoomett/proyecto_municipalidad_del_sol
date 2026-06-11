@@ -11,15 +11,15 @@ public class GatewayConfig {
     @Bean
     public RouteLocator routeLocator(RouteLocatorBuilder builder) {
         return builder.routes()
-                .route("ms_usuarios", r -> r.path("/api/auth/**")
+                .route("ms_usuarios", r -> r.path("/api/auth/**", "/api/auth")
                     .uri("http://172.20.0.10:8080"))
-                .route("ms_reportes", r -> r.path("/api/reports/**")
+                .route("ms_reportes", r -> r.path("/api/reports/**", "/api/reports")
                     .uri("http://172.20.0.11:8080"))
-                .route("ms_monitoreo", r -> r.path("/api/monitor/**")
+                .route("ms_monitoreo", r -> r.path("/api/monitor/**", "/api/monitor")
                     .uri("http://172.20.0.12:8080"))
-                .route("ms_alertas", r -> r.path("/api/alerts/**")
-                    .uri("http://172.20.0.13:8080"))
-                .route("ms_integracion", r -> r.path("/api/integration/**")
+                .route("ms_alertas", r -> r.path("/api/alerts/**", "/api/alerts")
+                    .uri("http://172.20.0.13:8083"))
+                .route("ms_integracion", r -> r.path("/api/integration/**", "/api/integration")
                     .uri("http://172.20.0.14:8090"))
                 .build();
     }
