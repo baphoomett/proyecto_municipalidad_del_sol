@@ -15,17 +15,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
+
 @Service
 public class ReportService {
 
     private final ReportRepository reportRepository;
     private final EventRepository eventRepository;
     private final WebhookService webhookService;
+    private final AlertWebhookService alertWebhookService;
 
-    public ReportService(ReportRepository reportRepository, EventRepository eventRepository, WebhookService webhookService) {
+    public ReportService(ReportRepository reportRepository, EventRepository eventRepository, 
+                         WebhookService webhookService, AlertWebhookService alertWebhookService) {
         this.reportRepository = reportRepository;
         this.eventRepository = eventRepository;
         this.webhookService = webhookService;
+        this.alertWebhookService = alertWebhookService;
     }
 
     @Transactional
@@ -39,12 +43,21 @@ public class ReportService {
         evReq.setPayload("Report created");
         Event e = ReportFactory.createEvent(saved, evReq);
         eventRepository.save(e);
+
         // notify ms_monitoreo asynchronously
         try {
             webhookService.notifyMonitor(saved);
         } catch (Exception ex) {
             // swallow to avoid breaking report creation
         }
+
+        // notify ms_alertas to generate alert + notifications
+        try {
+            alertWebhookService.notifyAlertas(saved);
+        } catch (Exception ex) {
+            // swallow to avoid breaking report creation
+        }
+
         return saved;
     }
 

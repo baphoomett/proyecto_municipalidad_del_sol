@@ -26,37 +26,23 @@ public class AlertListener {
     }
 
     @RabbitListener(queues = RabbitConfig.QUEUE)
-    public void onMessage(@Payload Object payload) {
-        CreateAlertRequest req = null;
+public void onMessage(@Payload CreateAlertRequest req) {
+    try {
+        if (req == null) {
+            log.warn("Received null payload in AlertListener");
+            return;
+        }
+        alertService.handleNewFocus(req);
+    } catch (Exception ex) {
+        log.error("Alert processing failed, saving to failed_alert table: {}", ex.getMessage());
         try {
-            if (payload == null) {
-                log.warn("Received null payload in AlertListener");
-                return;
-            }
-            // payload may be already mapped or a Map; normalize to CreateAlertRequest
-            if (payload instanceof CreateAlertRequest) {
-                req = (CreateAlertRequest) payload;
-            } else {
-                // convert using ObjectMapper
-                req = objectMapper.convertValue(payload, CreateAlertRequest.class);
-            }
-
-            if (req == null) {
-                log.warn("Could not convert payload to CreateAlertRequest: {}", payload);
-                return;
-            }
-
-            alertService.handleNewFocus(req);
-        } catch (Exception ex) {
-            log.error("Alert processing failed, saving to failed_alert table: {}", ex.getMessage());
-            try {
-                FailedAlert fa = new FailedAlert();
-                if (req != null) fa.setReportId(req.getReportId());
-                try { fa.setPayload(objectMapper.writeValueAsString(payload)); } catch (Exception e) { fa.setPayload(String.valueOf(payload)); }
-                fa.setError(ex.getMessage());
-                failedAlertRepository.save(fa);
-            } catch (Exception saveEx) {
-                log.error("Failed to persist failed alert: {}", saveEx.getMessage());
+            FailedAlert fa = new FailedAlert();
+            fa.setReportId(req != null ? req.getReportId() : null);
+            try { fa.setPayload(objectMapper.writeValueAsString(req)); } catch (Exception e) { fa.setPayload(String.valueOf(req)); }
+            fa.setError(ex.getMessage());
+            failedAlertRepository.save(fa);
+        } catch (Exception saveEx) {
+            log.error("Failed to persist failed alert: {}", saveEx.getMessage());
             }
         }
     }

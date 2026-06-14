@@ -32,17 +32,48 @@ export default function ReportsPage() {
     }
   };
 
+  const [locationStatus, setLocationStatus] = useState('idle'); // idle | loading | success | error
+
+const getLocation = () => {
+  setLocationStatus('loading');
+  if (!navigator.geolocation) {
+    setLocationStatus('error');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      setForm((prev) => ({
+        ...prev,
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      }));
+      setLocationStatus('success');
+    },
+    (err) => {
+      console.error('Error de geolocalización', err);
+      setLocationStatus('error');
+    }
+  );
+};
+
+useEffect(() => {
+  if (showForm) {
+    getLocation();
+  }
+}, [showForm]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.latitude || !form.longitude) {
+      setError('No se pudo obtener tu ubicación. Intenta de nuevo.');
+      return;
+    }
     setLoading(true);
     try {
-      await api.post('/bff/reports', {
-        ...form,
-        latitude: parseFloat(form.latitude),
-        longitude: parseFloat(form.longitude),
-      });
+      await api.post('/bff/reports', form);
       setShowForm(false);
       setForm({ reporterEmail: '', latitude: '', longitude: '', description: '', mediaUrls: [] });
+      setLocationStatus('idle');
       fetchReports();
     } catch (err) {
       setError('Error al crear el reporte');
@@ -103,29 +134,23 @@ export default function ReportsPage() {
                   />
                 </div>
                 <div style={styles.field}>
-                  <label>Latitud</label>
-                  <input
-                    style={styles.input}
-                    type="number"
-                    step="any"
-                    value={form.latitude}
-                    onChange={(e) => setForm({ ...form, latitude: e.target.value })}
-                    placeholder="-36.8201"
-                    required
-                  />
+                  <label>Ubicación</label>
+                  {locationStatus === 'loading' && <p style={{ color: '#888', fontSize: '0.85rem' }}>📍 Detectando ubicación...</p>}
+                  {locationStatus === 'success' && (
+                    <p style={{ color: '#2a9d8f', fontSize: '0.85rem' }}>
+                      ✅ {form.latitude?.toFixed(5)}, {form.longitude?.toFixed(5)}
+                    </p>
+                  )}
+                  {locationStatus === 'error' && (
+                    <div>
+                      <p style={{ color: '#e63946', fontSize: '0.85rem' }}>
+                        ❌ No se pudo obtener la ubicación. Activa el GPS y los permisos del navegador.
+                      </p>
+                      <button type="button" style={styles.btnNew} onClick={getLocation}>Reintentar</button>
+                    </div>
+                  )}
                 </div>
-                <div style={styles.field}>
-                  <label>Longitud</label>
-                  <input
-                    style={styles.input}
-                    type="number"
-                    step="any"
-                    value={form.longitude}
-                    onChange={(e) => setForm({ ...form, longitude: e.target.value })}
-                    placeholder="-73.0444"
-                    required
-                  />
-                </div>
+
               </div>
               {error && <p style={styles.error}>{error}</p>}
               <button style={styles.btnSubmit} type="submit" disabled={loading}>
