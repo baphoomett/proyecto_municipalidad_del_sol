@@ -10,4 +10,6 @@ public class ReportDto {
     private Double longitude;
     private String description;
     private List<String> mediaUrls;
+    private String severity;
+    private String incidentType;
 }

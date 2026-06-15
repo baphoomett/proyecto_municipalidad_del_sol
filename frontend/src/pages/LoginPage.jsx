@@ -20,7 +20,7 @@ export default function LoginPage() {
     try {
       if (isLogin) {
         const res = await api.post('/bff/auth/login', { email, password });
-        login(res.data.token);
+        login(res.data.token, email);
         navigate('/dashboard');
       } else {
         await api.post('/bff/auth/register', { email, password, fullName });

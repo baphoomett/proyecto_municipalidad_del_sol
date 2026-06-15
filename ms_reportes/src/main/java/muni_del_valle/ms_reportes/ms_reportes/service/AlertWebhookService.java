@@ -27,7 +27,8 @@ public class AlertWebhookService {
             Map<String, Object> payload = new HashMap<>();
             payload.put("reportId", report.getId());
             payload.put("description", report.getDescription());
-            payload.put("severity", "HIGH");
+            payload.put("severity", report.getSeverity());
+            payload.put("incidentType", report.getIncidentType());
             String geom = null;
             if (report.getLatitude() != null && report.getLongitude() != null) {
                 geom = String.format("POINT(%s %s)", report.getLongitude(), report.getLatitude());

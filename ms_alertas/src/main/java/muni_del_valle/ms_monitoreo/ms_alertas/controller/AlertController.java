@@ -29,6 +29,7 @@ public class AlertController {
         alert.setReportId(req.getReportId());
         alert.setSeverity(req.getSeverity());
         alert.setDescription(req.getDescription());
+        alert.setIncidentType(req.getIncidentType());
         alertRepository.save(alert);
         amqpTemplate.convertAndSend("alerts.exchange", "alerts.new", req);
         return ResponseEntity.accepted().build();

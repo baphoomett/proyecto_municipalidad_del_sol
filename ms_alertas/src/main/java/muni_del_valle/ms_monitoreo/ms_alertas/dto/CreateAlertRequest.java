@@ -24,4 +24,7 @@ public class CreateAlertRequest {
     public void setDescription(String description) { this.description = description; }
     public String getSeverity() { return severity; }
     public void setSeverity(String severity) { this.severity = severity; }
+    private String incidentType;
+    public String getIncidentType() { return incidentType; }
+    public void setIncidentType(String incidentType) { this.incidentType = incidentType; }
 }

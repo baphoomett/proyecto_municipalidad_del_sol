@@ -19,4 +19,12 @@ public class CreateReportRequest {
     public void setDescription(String description) { this.description = description; }
     public List<String> getMediaUrls() { return mediaUrls; }
     public void setMediaUrls(List<String> mediaUrls) { this.mediaUrls = mediaUrls; }
+    
+    private String severity;
+    private String incidentType;
+
+    public String getSeverity() { return severity; }
+    public void setSeverity(String severity) { this.severity = severity; }
+    public String getIncidentType() { return incidentType; }
+    public void setIncidentType(String incidentType) { this.incidentType = incidentType; }
 }

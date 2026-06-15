@@ -17,6 +17,8 @@ public class ReportFactory {
         r.setDescription(req.getDescription());
         if (req.getMediaUrls() != null) r.setMediaUrls(req.getMediaUrls());
         r.setStatus(ReportStatus.NEW);
+        r.setSeverity(req.getSeverity() != null ? req.getSeverity() : "MEDIA");
+        r.setIncidentType(req.getIncidentType() != null ? req.getIncidentType() : "OTRO");
         return r;
     }
 

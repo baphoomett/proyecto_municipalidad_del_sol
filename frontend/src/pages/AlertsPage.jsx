@@ -26,16 +26,33 @@ export default function AlertsPage() {
   };
 
   const getSeverityColor = (severity) => {
-    if (severity === 'HIGH') return '#e63946';
-    if (severity === 'MEDIUM') return '#f4a261';
-    return '#2a9d8f';
-  };
+    if (severity === 'ALTA') return '#e63946';
+    if (severity === 'MEDIA') return '#f4a261';
+    if (severity === 'BAJA') return '#2a9d8f';
+    return '#999';
+};
 
-  const getSeverityLabel = (severity) => {
-    if (severity === 'HIGH') return '🔴 Alta';
-    if (severity === 'MEDIUM') return '🟡 Media';
-    return '🟢 Baja';
-  };
+const getSeverityLabel = (severity) => {
+    if (severity === 'ALTA') return '🔴 Alta';
+    if (severity === 'MEDIA') return '🟡 Media';
+    if (severity === 'BAJA') return '🟢 Baja';
+    return severity || 'Sin definir';
+};
+
+const TYPE_LABELS = {
+    FORESTAL: '🌲 Forestal',
+    VIVIENDA: '🏠 Vivienda',
+    VEHICULAR: '🚗 Vehicular',
+    INDUSTRIAL: '🏭 Industrial',
+    OTRO: '❓ Otro',
+};
+
+const STATUS_LABELS = {
+    ACTIVE: 'Activo',
+    RESOLVED: 'Resuelto',
+};
+
+const getTypeLabel = (type) => TYPE_LABELS[type] || type;
 
   return (
     <div style={styles.container}>
@@ -65,16 +82,18 @@ export default function AlertsPage() {
             {alerts.map((alert) => (
               <div key={alert.id} style={styles.alertCard}>
                 <div style={styles.alertHeader}>
-                  <span style={{
-                    ...styles.badge,
-                    backgroundColor: getSeverityColor(alert.severity)
-                  }}>
-                    {getSeverityLabel(alert.severity)}
-                  </span>
-                  <span style={styles.date}>
-                    {new Date(alert.createdAt).toLocaleDateString('es-CL')}
-                  </span>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <span style={{ ...styles.badge, backgroundColor: getSeverityColor(alert.severity) }}>
+                        {getSeverityLabel(alert.severity)}
+                    </span>
+                    {alert.incidentType && (
+                        <span style={styles.tag}>{getTypeLabel(alert.incidentType)}</span>
+                    )}
                 </div>
+                <span style={styles.date}>
+                    {new Date(alert.createdAt).toLocaleDateString('es-CL')}
+                </span>
+            </div>
                 <p style={styles.alertDesc}>{alert.description || 'Sin descripción'}</p>
                 <div style={styles.alertFooter}>
                   <span style={styles.meta}>📋 Reporte #{alert.reportId}</span>
@@ -82,7 +101,7 @@ export default function AlertsPage() {
                     ...styles.statusBadge,
                     backgroundColor: alert.status === 'ACTIVA' ? '#e63946' : '#2a9d8f'
                   }}>
-                    {alert.status}
+                    {STATUS_LABELS[alert.status] || alert.status}
                   </span>
                 </div>
               </div>
@@ -150,6 +169,15 @@ const styles = {
     fontSize: '0.8rem',
     fontWeight: 'bold',
   },
+
+  tag: {
+    backgroundColor: '#f0f2f5',
+    color: '#555',
+    padding: '0.2rem 0.7rem',
+    borderRadius: '20px',
+    fontSize: '0.8rem',
+},
+
   date: { color: '#888', fontSize: '0.85rem' },
   alertDesc: { margin: '0.5rem 0', color: '#333' },
   alertFooter: {

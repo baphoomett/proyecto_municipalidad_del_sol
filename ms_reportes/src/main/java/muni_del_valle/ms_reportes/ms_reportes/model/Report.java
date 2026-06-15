@@ -52,4 +52,12 @@ public class Report {
     public void setStatus(ReportStatus status) { this.status = status; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    private String severity = "MEDIA";
+    private String incidentType = "OTRO";
+
+    public String getSeverity() { return severity; }
+    public void setSeverity(String severity) { this.severity = severity; }
+    public String getIncidentType() { return incidentType; }
+    public void setIncidentType(String incidentType) { this.incidentType = incidentType; }
 }
