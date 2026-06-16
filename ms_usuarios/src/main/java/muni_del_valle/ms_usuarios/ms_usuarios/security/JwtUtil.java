@@ -20,16 +20,27 @@ public class JwtUtil {
     private Key getSigningKey() { return Keys.hmacShaKeyFor(secret.getBytes()); }
 
     public String generateToken(String subject) {
-        Date now = new Date();
-        Date exp = new Date(now.getTime() + expirationMs);
-        return Jwts.builder()
-                .setSubject(subject)
-                .setIssuedAt(now)
-                .setExpiration(exp)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                .compact();
+        return generateToken(subject, null);
     }
 
+    public String generateToken(String subject, String role) {
+        Date now = new Date();
+        Date exp = new Date(now.getTime() + expirationMs);
+        var builder = Jwts.builder()
+                .setSubject(subject)
+                .setIssuedAt(now)
+                .setExpiration(exp);
+        if (role != null) {
+            builder.claim("role", role);
+        }
+        return builder.signWith(getSigningKey(), SignatureAlgorithm.HS256).compact();
+    }
+
+    public String extractRole(String token) {
+        Object role = Jwts.parserBuilder().setSigningKey(getSigningKey()).build()
+                .parseClaimsJws(token).getBody().get("role");
+        return role != null ? role.toString() : null;
+    }
     public String extractUsername(String token) {
         return Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token).getBody().getSubject();
     }

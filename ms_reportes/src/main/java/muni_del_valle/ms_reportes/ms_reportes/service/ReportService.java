@@ -84,11 +84,25 @@ public class ReportService {
         // update report status if event type maps to status
         try {
             EventType et = EventType.valueOf(req.getType());
-            if (et == EventType.DISPATCHED) r.setStatus(ReportStatus.IN_PROGRESS);
-            if (et == EventType.CLOSED) r.setStatus(ReportStatus.CLOSED);
+            if (et == EventType.DISPATCHED) r.setStatus(ReportStatus.EN_COMBATE);
+            if (et == EventType.CLOSED) r.setStatus(ReportStatus.EXTINGUIDO);
             reportRepository.save(r);
         } catch (Exception ignored) {}
 
         return Optional.of(saved);
+    }
+
+    @Transactional
+    public Optional<Report> updateStatus(Long reportId, String newStatus) {
+        Optional<Report> or = reportRepository.findById(reportId);
+        if (or.isEmpty()) return Optional.empty();
+        Report r = or.get();
+        try {
+            ReportStatus st = ReportStatus.valueOf(newStatus);
+            r.setStatus(st);
+            return Optional.of(reportRepository.save(r));
+        } catch (IllegalArgumentException ex) {
+            return Optional.empty();
+        }
     }
 }

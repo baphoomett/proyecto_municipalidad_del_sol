@@ -6,6 +6,7 @@ import api from '../services/api';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import Footer from '../components/Footer';
+import Navbar from '../components/Navbar';
 
 // Fix icono por defecto de leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -36,14 +37,7 @@ export default function MapPage() {
 
   return (
     <div style={styles.container}>
-      <nav style={styles.navbar}>
-        <h2 style={styles.logo} onClick={() => navigate('/dashboard')}>🔥 Valle del Sol</h2>
-        <div style={styles.navLinks}>
-          <button style={styles.navBtn} onClick={() => navigate('/dashboard')}>Dashboard</button>
-          <button style={styles.navBtn} onClick={() => navigate('/reports')}>Reportes</button>
-          <button style={styles.navBtnRed} onClick={() => { logout(); navigate('/'); }}>Cerrar sesión</button>
-        </div>
-      </nav>
+      <Navbar />
 
       <div style={styles.content}>
         <h1 style={styles.title}>🗺️ Mapa de Focos Activos</h1>

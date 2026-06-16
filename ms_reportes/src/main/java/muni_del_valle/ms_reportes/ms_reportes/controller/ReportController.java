@@ -76,4 +76,10 @@ public class ReportController {
         Optional<Event> oe = reportService.addEvent(id, req);
         return oe.map(e -> ResponseEntity.ok(e)).orElseGet(() -> ResponseEntity.notFound().build());
     }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<?> updateStatus(@PathVariable Long id, @RequestBody muni_del_valle.ms_reportes.ms_reportes.dto.UpdateStatusRequest req) {
+        Optional<Report> updated = reportService.updateStatus(id, req.getStatus());
+        return updated.map(r -> ResponseEntity.ok(r)).orElseGet(() -> ResponseEntity.notFound().build());
+    }
 }

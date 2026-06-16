@@ -31,4 +31,14 @@ public class ReportService {
         HttpEntity<?> request = new HttpEntity<>(headers);
         return restTemplate.exchange(gatewayUrl + "/api/reports", HttpMethod.GET, request, Object.class);
     }
+
+    public ResponseEntity<?> updateStatus(Long id, String status, String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(token);
+        java.util.Map<String, String> body = new java.util.HashMap<>();
+        body.put("status", status);
+        HttpEntity<java.util.Map<String, String>> request = new HttpEntity<>(body, headers);
+        return restTemplate.exchange(gatewayUrl + "/api/reports/" + id + "/status", HttpMethod.PATCH, request, Object.class);
+    }
 }

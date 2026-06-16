@@ -27,7 +27,7 @@ public class Report {
     private List<String> mediaUrls = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
-    private ReportStatus status = ReportStatus.NEW;
+   private ReportStatus status = ReportStatus.ACTIVO;
 
     private Instant createdAt;
 

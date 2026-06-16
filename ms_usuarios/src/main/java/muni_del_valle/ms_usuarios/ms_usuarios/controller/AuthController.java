@@ -41,7 +41,12 @@ public class AuthController {
     public ResponseEntity<?> login(@Valid @RequestBody AuthRequest req) {
         try {
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
-            String token = jwtUtil.generateToken(req.getEmail());
+            var userDetails = userService.loadUserByUsername(req.getEmail());
+            String role = userDetails.getAuthorities().stream()
+                    .findFirst()
+                    .map(a -> a.getAuthority())
+                    .orElse("ROLE_USER");
+            String token = jwtUtil.generateToken(req.getEmail(), role);
             return ResponseEntity.ok(new AuthResponse(token));
         } catch (AuthenticationException ex) {
             return ResponseEntity.status(401).build();

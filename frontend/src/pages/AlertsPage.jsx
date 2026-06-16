@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import Footer from '../components/Footer';
+import Navbar from '../components/Navbar';
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState([]);
@@ -56,15 +57,7 @@ const getTypeLabel = (type) => TYPE_LABELS[type] || type;
 
   return (
     <div style={styles.container}>
-      <nav style={styles.navbar}>
-        <h2 style={styles.logo} onClick={() => navigate('/dashboard')}>🔥 Municipalidad Valle del Sol</h2>
-        <div style={styles.navLinks}>
-          <button style={styles.navBtn} onClick={() => navigate('/dashboard')}>Dashboard</button>
-          <button style={styles.navBtn} onClick={() => navigate('/reports')}>Reportes</button>
-          <button style={styles.navBtn} onClick={() => navigate('/map')}>Mapa</button>
-          <button style={styles.navBtnRed} onClick={() => { logout(); navigate('/'); }}>Cerrar sesión</button>
-        </div>
-      </nav>
+      <Navbar />
 
       <div style={styles.content}>
         <h1 style={styles.title}>🔔 Sistema de Alertas</h1>

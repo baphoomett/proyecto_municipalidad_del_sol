@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
-  const { logout } = useAuth();
+  const { logout, role } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -14,6 +14,9 @@ export default function Navbar() {
         <button style={styles.navBtn} onClick={() => navigate('/reports')}>Reportes</button>
         <button style={styles.navBtn} onClick={() => navigate('/map')}>Mapa</button>
         <button style={styles.navBtn} onClick={() => navigate('/alerts')}>Alertas</button>
+        {role === 'ROLE_ADMIN' && (
+          <button style={styles.navBtn} onClick={() => navigate('/admin')}>Admin</button>
+        )}
         <button style={styles.navBtnOutline} onClick={() => { logout(); navigate('/'); }}>
           Cerrar sesión
         </button>

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Navbar from '../components/Navbar';
 
 export default function DashboardPage() {
   const { logout } = useAuth();
@@ -37,17 +38,7 @@ export default function DashboardPage() {
   return (
     <div style={styles.wrapper}>
       {/* Navbar */}
-      <nav style={styles.navbar}>
-        <div style={styles.navBrand} onClick={() => navigate('/dashboard')}>
-          🔥 <span style={styles.brandText}>Municipalidad Valle del Sol</span>
-        </div>
-        <div style={styles.navLinks}>
-          <button style={styles.navBtn} onClick={() => navigate('/reports')}>Reportes</button>
-          <button style={styles.navBtn} onClick={() => navigate('/map')}>Mapa</button>
-          <button style={styles.navBtn} onClick={() => navigate('/alerts')}>Alertas</button>
-          <button style={styles.navBtnOutline} onClick={handleLogout}>Cerrar sesión</button>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Hero */}
       <div style={styles.hero}>
