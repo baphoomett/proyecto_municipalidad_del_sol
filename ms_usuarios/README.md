@@ -5,6 +5,18 @@ Propósito
 - Gestionar autenticación, datos personales y permisos/perfiles.
 - Permitir reportes anónimos mediante token `guest` para casos urgentes.
 
+Módulos del proyecto
+---------------------
+Este microservicio es parte de un sistema mayor compuesto por:
+- `frontend` — SPA en React/Vite: login, dashboard, mapa de focos, reportes, alertas y panel de administración.
+- `bff` — Backend for Frontend: API simplificada para el frontend, agrega CORS y valida roles antes de reenviar al gateway.
+- `api_gateway` — Punto único de entrada al backend: rutea cada request al microservicio interno correspondiente.
+- `ms_usuarios` (este módulo) — Autenticación, datos personales y roles/permisos.
+- `ms_reportes` — Gestión de reportes de incendios y su ciclo de vida.
+- `ms_monitoreo` — Seguimiento geoespacial de focos activos en tiempo real (SSE).
+- `ms_alertas` — Emisión de alertas por email y SMS (simulado) ante nuevos focos.
+- `ms_integracion` — Integración con MinIO (evidencia) y RabbitMQ.
+
 Decisiones arquitectónicas
 - Microservicio independiente con base de datos PostgreSQL propia (separación por contexto y escalabilidad).
 - Persistencia: Spring Data JPA (Repository Pattern implícito) usando `UserRepository` y `RoleRepository`.
@@ -27,8 +39,27 @@ Endpoints clave
 Configuración
 - `src/main/resources/application.properties` contiene las propiedades de conexión a Postgres y JWT. Ajustar `spring.datasource.*` según tu entorno.
 
+Instalación
+-----------
+Requisitos: Java 21 y Maven (o el wrapper `./mvnw` / `mvnw.cmd` incluido en el proyecto).
+
+```bash
+cd ms_usuarios
+mvn clean install
+```
+
 Ejecución
-- Build y run con Maven (no ejecutado ahora por petición del usuario):
+---------
+Opción A — con Docker Compose (recomendado, levanta este servicio junto con su base de datos PostgreSQL):
+
+```bash
+cd ..
+docker-compose up -d --build postgres_ms_usuarios ms_usuarios
+```
+
+El servicio queda disponible en `http://localhost:8084` (puerto interno 8080).
+
+Opción B — standalone (requiere PostgreSQL en `localhost:5432` con la base `ms_usuarios_db`, o ajustar `spring.datasource.*` en `application.properties`):
 
 ```bash
 mvn clean package

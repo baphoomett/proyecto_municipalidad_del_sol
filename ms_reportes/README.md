@@ -4,6 +4,18 @@ ms_reportes
 Propósito
 - Gestionar reportes de incendios y eventos asociados (CREATED, DISPATCHED, CLOSED).
 
+Módulos del proyecto
+---------------------
+Este microservicio es parte de un sistema mayor compuesto por:
+- `frontend` — SPA en React/Vite: login, dashboard, mapa de focos, reportes, alertas y panel de administración.
+- `bff` — Backend for Frontend: API simplificada para el frontend, agrega CORS y valida roles antes de reenviar al gateway.
+- `api_gateway` — Punto único de entrada al backend: rutea cada request al microservicio interno correspondiente.
+- `ms_usuarios` — Autenticación, datos personales y roles/permisos.
+- `ms_reportes` (este módulo) — Gestión de reportes de incendios y su ciclo de vida.
+- `ms_monitoreo` — Seguimiento geoespacial de focos activos en tiempo real (SSE).
+- `ms_alertas` — Emisión de alertas por email y SMS (simulado) ante nuevos focos.
+- `ms_integracion` — Integración con MinIO (evidencia) y RabbitMQ.
+
 Decisiones principales
 - Cada microservicio tiene su propia BD PostgreSQL.
 - Persistencia: Spring Data JPA con `ReportRepository` y `EventRepository` (Repository Pattern).
@@ -21,6 +33,33 @@ Endpoints implementados
 Notas
 - Actualmente no hay verificación de JWT entre microservicios; integrar validación de tokens compartiendo secret o via OAuth2/JWK es sugerido.
 - Multimedia: actualmente solo se guardan URLs. Implementar almacenamiento (MinIO/S3) y flow de presigned URLs más adelante.
+
+Instalación
+-----------
+Requisitos: Java 21 y Maven (o el wrapper `./mvnw` / `mvnw.cmd` incluido en el proyecto).
+
+```bash
+cd ms_reportes
+mvn clean install
+```
+
+Ejecución
+---------
+Opción A — con Docker Compose (recomendado, levanta este servicio junto con su base de datos PostgreSQL):
+
+```bash
+cd ..
+docker-compose up -d --build postgres_ms_reportes ms_reportes
+```
+
+El servicio queda disponible en `http://localhost:8081` (puerto interno 8080).
+
+Opción B — standalone (configurar `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` y `SPRING_DATASOURCE_PASSWORD` apuntando a tu PostgreSQL; por ejemplo `localhost:5433/ms_reportes_db` si la base se levantó con Docker Compose):
+
+```bash
+mvn clean package
+java -jar target/ms_reportes-0.0.1-SNAPSHOT.jar
+```
 
 Pruebas unitarias
 -----------------

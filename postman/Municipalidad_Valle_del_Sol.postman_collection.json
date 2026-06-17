@@ -1,0 +1,439 @@
+{
+  "info": {
+    "name": "Municipalidad Valle del Sol - API",
+    "description": "Colección de la API REST de microservicios del proyecto Municipalidad Valle del Sol (gestión de reportes y alertas de incendios).\n\nEntradas disponibles:\n- A través del API Gateway ({{gateway_url}}, puerto 8085): forma recomendada para probar los microservicios.\n- A través del BFF ({{bff_url}}, puerto 8086): la misma forma en que el frontend consume la API.\n- Acceso directo a cada microservicio (puertos 8084/8081/8182/8083/8090): útil para depurar un servicio sin pasar por el gateway.\n\nFlujo sugerido: 1) Auth > Login o Guest (guarda el token automáticamente) 2) Reportes > Crear reporte (guarda report_id) 3) Monitoreo > Crear focus (guarda focus_id) 4) el resto de los endpoints protegidos ya van a usar {{token}} automáticamente.\n\nNota: ms_reportes, ms_alertas y ms_integracion no tienen seguridad JWT habilitada (permitAll); ms_usuarios y ms_monitoreo sí la requieren.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth (ms_usuarios)",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"fullName\": \"Usuario de Prueba\"\n}"
+            },
+            "url": { "raw": "{{gateway_url}}/api/auth/register", "host": ["{{gateway_url}}"], "path": ["api", "auth", "register"] },
+            "description": "Crea un usuario con ROLE_USER. Público (sin token)."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.token) { pm.environment.set('token', json.token); }",
+                  "}",
+                  "pm.test('status is 200 or 401', () => [200, 401].includes(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}"
+            },
+            "url": { "raw": "{{gateway_url}}/api/auth/login", "host": ["{{gateway_url}}"], "path": ["api", "auth", "login"] },
+            "description": "Autentica y devuelve un JWT. Público (sin token). Guarda automáticamente el token en la variable de entorno {{token}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Guest (token sin registro)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.token) { pm.environment.set('guest_token', json.token); pm.environment.set('token', json.token); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "" },
+            "url": { "raw": "{{gateway_url}}/api/auth/guest", "host": ["{{gateway_url}}"], "path": ["api", "auth", "guest"] },
+            "description": "Crea un usuario ROLE_GUEST temporal y devuelve un JWT, sin necesidad de registrarse. Público (sin token ni body)."
+          },
+          "response": []
+        },
+        {
+          "name": "Usuario autenticado (me)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{gateway_url}}/api/users/me", "host": ["{{gateway_url}}"], "path": ["api", "users", "me"] },
+            "description": "Devuelve los datos del usuario autenticado. Requiere JWT."
+          },
+          "response": []
+        },
+        {
+          "name": "Usuario por ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{gateway_url}}/api/users/{{user_id}}", "host": ["{{gateway_url}}"], "path": ["api", "users", "{{user_id}}"] },
+            "description": "Devuelve un usuario por ID. Requiere JWT."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reportes (ms_reportes)",
+      "item": [
+        {
+          "name": "Crear reporte (JSON)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.id) { pm.environment.set('report_id', json.id); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reporterEmail\": \"{{test_email}}\",\n  \"latitude\": -33.4569,\n  \"longitude\": -70.6483,\n  \"description\": \"Foco de incendio cerca del parque central\",\n  \"mediaUrls\": [],\n  \"severity\": \"HIGH\",\n  \"incidentType\": \"incendio forestal\"\n}"
+            },
+            "url": { "raw": "{{gateway_url}}/api/reports", "host": ["{{gateway_url}}"], "path": ["api", "reports"] },
+            "description": "Crea un reporte. Público (sin token). Notifica a ms_monitoreo y ms_alertas. Guarda automáticamente report_id."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear reporte (multipart con archivos)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "reporterEmail", "value": "{{test_email}}", "type": "text" },
+                { "key": "latitude", "value": "-33.4569", "type": "text" },
+                { "key": "longitude", "value": "-70.6483", "type": "text" },
+                { "key": "description", "value": "Reporte con evidencia fotográfica", "type": "text" },
+                { "key": "files", "type": "file", "src": [] }
+              ]
+            },
+            "url": { "raw": "{{gateway_url}}/api/reports/form", "host": ["{{gateway_url}}"], "path": ["api", "reports", "form"] },
+            "description": "Crea un reporte vía multipart/form-data con archivos adjuntos (solo PNG/JPEG, máx. 50 MB por archivo). Público (sin token). Seleccioná uno o más archivos en el campo 'files' antes de enviar."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar reportes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/reports?status=&page=0&size=20",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "reports"],
+              "query": [
+                { "key": "status", "value": "", "description": "Opcional: CREATED, DISPATCHED, CLOSED, etc." },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "description": "Lista reportes paginados, con filtro opcional por estado. Público (sin token)."
+          },
+          "response": []
+        },
+        {
+          "name": "Agregar evento a un reporte",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"DISPATCHED\",\n  \"payload\": \"Brigada en camino al sitio\"\n}"
+            },
+            "url": { "raw": "{{gateway_url}}/api/reports/{{report_id}}/events", "host": ["{{gateway_url}}"], "path": ["api", "reports", "{{report_id}}", "events"] },
+            "description": "Agrega un evento (CREATED, DISPATCHED, CLOSED) a un reporte existente. Público (sin token)."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar estado del reporte",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CONTROLADO\"\n}"
+            },
+            "url": { "raw": "{{gateway_url}}/api/reports/{{report_id}}/status", "host": ["{{gateway_url}}"], "path": ["api", "reports", "{{report_id}}", "status"] },
+            "description": "Actualiza el estado de un reporte (ej. ACTIVO, EN_COMBATE, CONTROLADO, EXTINGUIDO). Público (sin token) a nivel de microservicio; vía BFF requiere rol ADMIN."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Monitoreo (ms_monitoreo)",
+      "item": [
+        {
+          "name": "Crear focus",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.id) { pm.environment.set('focus_id', json.id); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reportId\": {{report_id}},\n  \"geometry\": \"POINT(-70.6483 -33.4569)\",\n  \"description\": \"Foco activo detectado cerca del parque central\",\n  \"severity\": \"HIGH\"\n}"
+            },
+            "url": { "raw": "{{gateway_url}}/api/monitor/focus", "host": ["{{gateway_url}}"], "path": ["api", "monitor", "focus"] },
+            "description": "Crea un foco de monitoreo geoespacial (WKT). Requiere JWT. Guarda automáticamente focus_id."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar focos",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/monitor/focus?status=&page=0&size=20",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "monitor", "focus"],
+              "query": [
+                { "key": "status", "value": "", "description": "Opcional: VERIFIED, etc." },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "description": "Lista focos paginados, con filtro opcional por estado. Requiere JWT."
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener focus por ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{gateway_url}}/api/monitor/focus/{{focus_id}}", "host": ["{{gateway_url}}"], "path": ["api", "monitor", "focus", "{{focus_id}}"] },
+            "description": "Obtiene el detalle de un foco. Requiere JWT."
+          },
+          "response": []
+        },
+        {
+          "name": "Stream de eventos (SSE)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Accept", "value": "text/event-stream" }
+            ],
+            "url": { "raw": "{{gateway_url}}/api/monitor/stream", "host": ["{{gateway_url}}"], "path": ["api", "monitor", "stream"] },
+            "description": "Suscripción Server-Sent Events para recibir notificaciones en tiempo real (evento 'focus-created'). Requiere JWT. La conexión queda abierta; en Postman se ve en la pestaña de respuesta en streaming."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Alertas (ms_alertas)",
+      "item": [
+        {
+          "name": "Webhook de nuevo foco",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reportId\": {{report_id}},\n  \"geometry\": \"POINT(-70.6483 -33.4569)\",\n  \"description\": \"Foco activo detectado cerca del parque central\",\n  \"severity\": \"HIGH\",\n  \"incidentType\": \"incendio forestal\"\n}"
+            },
+            "url": { "raw": "{{gateway_url}}/api/alerts/webhook", "host": ["{{gateway_url}}"], "path": ["api", "alerts", "webhook"] },
+            "description": "Recibe un nuevo foco, lo persiste como Alert y lo publica en RabbitMQ (alerts.exchange). Dispara envío de email y SMS simulado. Público (sin token)."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar alertas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{gateway_url}}/api/alerts", "host": ["{{gateway_url}}"], "path": ["api", "alerts"] },
+            "description": "Lista las alertas registradas. Público (sin token)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Integración (ms_integracion - directo, puerto 8090)",
+      "item": [
+        {
+          "name": "Generar URL presignada de MinIO",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"objectName\": \"evidencias/imagen-1.jpg\",\n  \"expirySeconds\": 3600\n}"
+            },
+            "url": { "raw": "{{integracion_url}}/api/minio/presigned", "host": ["{{integracion_url}}"], "path": ["api", "minio", "presigned"] },
+            "description": "Genera una URL presignada para subir un objeto a MinIO. Público (sin token). Se llama directo al microservicio (puerto 8090) porque el prefijo de ruteo del gateway, /api/integration/**, no coincide con el path real del controller."
+          },
+          "response": []
+        },
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{integracion_url}}/api/health", "host": ["{{integracion_url}}"], "path": ["api", "health"] },
+            "description": "Verifica que el servicio esté arriba. Público (sin token)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "BFF (como lo consume el frontend)",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"fullName\": \"Usuario de Prueba\"\n}"
+            },
+            "url": { "raw": "{{bff_url}}/bff/auth/register", "host": ["{{bff_url}}"], "path": ["bff", "auth", "register"] },
+            "description": "Proxy del BFF hacia api_gateway -> ms_usuarios. Público (sin token)."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.token) { pm.environment.set('token', json.token); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}"
+            },
+            "url": { "raw": "{{bff_url}}/bff/auth/login", "host": ["{{bff_url}}"], "path": ["bff", "auth", "login"] },
+            "description": "Proxy del BFF hacia api_gateway -> ms_usuarios. Público (sin token). Guarda automáticamente el token."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear reporte",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reporterEmail\": \"{{test_email}}\",\n  \"latitude\": -33.4569,\n  \"longitude\": -70.6483,\n  \"description\": \"Foco de incendio cerca del parque central\",\n  \"mediaUrls\": [],\n  \"severity\": \"HIGH\",\n  \"incidentType\": \"incendio forestal\"\n}"
+            },
+            "url": { "raw": "{{bff_url}}/bff/reports", "host": ["{{bff_url}}"], "path": ["bff", "reports"] },
+            "description": "Proxy del BFF hacia api_gateway -> ms_reportes. Requiere JWT (header Authorization)."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar reportes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{bff_url}}/bff/reports", "host": ["{{bff_url}}"], "path": ["bff", "reports"] },
+            "description": "Proxy del BFF hacia api_gateway -> ms_reportes. Requiere JWT."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar estado del reporte (requiere ROLE_ADMIN)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CONTROLADO\"\n}"
+            },
+            "url": { "raw": "{{bff_url}}/bff/reports/{{report_id}}/status", "host": ["{{bff_url}}"], "path": ["bff", "reports", "{{report_id}}", "status"] },
+            "description": "Proxy del BFF hacia api_gateway -> ms_reportes. Requiere JWT con rol ROLE_ADMIN; devuelve 403 si el usuario no es admin."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar alertas",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{bff_url}}/bff/alerts", "host": ["{{bff_url}}"], "path": ["bff", "alerts"] },
+            "description": "Proxy del BFF hacia api_gateway -> ms_alertas. Requiere JWT."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

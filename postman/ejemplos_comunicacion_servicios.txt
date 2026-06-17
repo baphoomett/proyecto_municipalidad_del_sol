@@ -1,0 +1,446 @@
+=====================================================================
+EJEMPLOS DE PETICIONES Y RESPUESTAS - COMUNICACION ENTRE MICROSERVICIOS
+Proyecto: Municipalidad Valle del Sol
+=====================================================================
+
+Estos ejemplos estan en formato HTTP "crudo" para poder copiarlos y
+pegarlos en Postman (Import > Raw text), en un archivo .http, o
+convertirlos a curl. Cada bloque indica:
+  - Quien llama a quien (origen -> destino)
+  - Si la llamada es sincronica (HTTP) o asincronica (RabbitMQ)
+  - PETICION y RESPUESTA reales segun los DTOs/modelos del codigo
+
+Puertos usados (segun docker-compose.yml):
+  ms_usuarios     -> localhost:8084 (interno 8080)
+  ms_reportes     -> localhost:8081 (interno 8080)
+  ms_monitoreo    -> localhost:8182 (interno 8080)
+  ms_alertas      -> localhost:8083
+  ms_integracion  -> localhost:8090
+  api_gateway     -> localhost:8085
+  bff             -> localhost:8086
+  rabbitmq mgmt   -> localhost:15672 (guest/guest)
+  mailhog UI      -> localhost:8025
+
+=====================================================================
+1. CLIENTE -> ms_usuarios : LOGIN (obtener el JWT base)
+=====================================================================
+Se usa para generar el token que despues se reutiliza en los pasos
+3, 6, 7 y 9 de este archivo (cualquier JWT valido sirve para probar
+las llamadas internas, ya que los filtros solo validan firma y
+expiracion, no quien es el "subject").
+
+PETICION:
+---------
+POST /api/auth/login HTTP/1.1
+Host: localhost:8085
+Content-Type: application/json
+
+{
+  "email": "tester@example.com",
+  "password": "Test1234"
+}
+
+RESPUESTA (200 OK):
+--------------------
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0ZXJAZXhhbXBsZS5jb20iLCJpYXQiOjE3NTA3MjAwMDAsImV4cCI6MTc1MDcyMzYwMH0.4f7b1c9e8a2d6f0b3c5e7a9d1b3f5c7e9a1d3b5f7c9e1a3d5b7f9c1e3a5d7b9f"
+}
+
+RESPUESTA si las credenciales son invalidas (401):
+---------------------------------------------------
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json
+
+{
+  "error": "Credenciales invalidas"
+}
+
+
+=====================================================================
+2. CLIENTE -> ms_usuarios : TOKEN GUEST (sin registro previo)
+=====================================================================
+Alternativa rapida al login, util para simular un ciudadano
+reportando sin cuenta.
+
+PETICION:
+---------
+POST /api/auth/guest HTTP/1.1
+Host: localhost:8085
+Content-Type: application/json
+
+RESPUESTA (200 OK):
+--------------------
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJndWVzdCthOTRlMWM3MUBhbm9ueW1vdXMubG9jYWwiLCJpYXQiOjE3NTA3MjAwMDAsImV4cCI6MTc1MDcyMzYwMH0.guest1signature2example3here4padding"
+}
+
+
+=====================================================================
+3. CLIENTE -> ms_reportes : CREAR REPORTE (entrypoint del flujo)
+=====================================================================
+Este POST es el que dispara, internamente y de forma asincrona/no
+bloqueante, los pasos 4 y 5 (notificacion a ms_monitoreo y a
+ms_alertas). No requiere token (ms_reportes no tiene seguridad JWT
+habilitada).
+
+PETICION:
+---------
+POST /api/reports HTTP/1.1
+Host: localhost:8081
+Content-Type: application/json
+
+{
+  "reporterEmail": "tester@example.com",
+  "latitude": -33.4569,
+  "longitude": -70.6483,
+  "description": "Foco de incendio cerca del parque central",
+  "mediaUrls": [],
+  "severity": "HIGH",
+  "incidentType": "incendio forestal"
+}
+
+RESPUESTA (201 Created):
+--------------------------
+HTTP/1.1 201 Created
+Location: /api/reports/1
+Content-Type: application/json
+
+{
+  "id": 1,
+  "reporterEmail": "tester@example.com",
+  "latitude": -33.4569,
+  "longitude": -70.6483,
+  "description": "Foco de incendio cerca del parque central",
+  "mediaUrls": [],
+  "status": "ACTIVO",
+  "severity": "HIGH",
+  "incidentType": "incendio forestal",
+  "createdAt": "2026-06-17T10:15:30.123Z"
+}
+
+
+=====================================================================
+4. ms_reportes -> ms_monitoreo : NOTIFICACION INTERNA (WebhookService)
+=====================================================================
+Llamada que ms_reportes hace automaticamente al crear un reporte
+(clase WebhookService.notifyMonitor). Para probarla de forma aislada
+(sin pasar por ms_reportes), se puede simular manualmente: ms_monitoreo
+SI requiere JWT (cualquiera valido, generado en el paso 1 o 2).
+
+PETICION (simulando la llamada interna):
+------------------------------------------
+POST /api/monitor/focus HTTP/1.1
+Host: localhost:8182
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reportId": 1,
+  "geometry": "POINT(-70.6483 -33.4569)",
+  "description": "Foco de incendio cerca del parque central",
+  "severity": "HIGH"
+}
+
+RESPUESTA (201 Created):
+--------------------------
+HTTP/1.1 201 Created
+Location: /api/monitor/focus/5
+Content-Type: application/json
+
+{
+  "id": 5,
+  "reportId": 1,
+  "geometry": "POINT (-70.6483 -33.4569)",
+  "description": "Foco de incendio cerca del parque central",
+  "status": "NEW",
+  "severity": "HIGH",
+  "createdAt": "2026-06-17T10:15:30.456Z"
+}
+
+Nota: si ms_reportes no logra contactar a ms_monitoreo (servicio
+caido, timeout, etc.), la creacion del reporte en el paso 3 NO falla:
+el error se loguea y se ignora (ver tests "noDeberiaFallarSi...").
+
+
+=====================================================================
+5. ms_reportes -> ms_alertas : NOTIFICACION INTERNA (AlertWebhookService)
+=====================================================================
+Llamada que ms_reportes hace automaticamente al crear un reporte
+(clase AlertWebhookService.notifyAlertas). ms_alertas NO requiere JWT.
+
+PETICION (simulando la llamada interna):
+------------------------------------------
+POST /api/alerts/webhook HTTP/1.1
+Host: localhost:8083
+Content-Type: application/json
+
+{
+  "reportId": 1,
+  "geometry": "POINT(-70.6483 -33.4569)",
+  "description": "Foco de incendio cerca del parque central",
+  "severity": "HIGH",
+  "incidentType": "incendio forestal"
+}
+
+RESPUESTA (202 Accepted):
+----------------------------
+HTTP/1.1 202 Accepted
+Content-Type: application/json
+
+{
+  "id": 9,
+  "reportId": 1,
+  "severity": "HIGH",
+  "description": "Foco de incendio cerca del parque central",
+  "status": "ACTIVE",
+  "incidentType": "incendio forestal",
+  "createdAt": "2026-06-17T10:15:30.789Z"
+}
+
+Efecto secundario: ms_alertas publica el mismo payload (como
+CreateAlertRequest) en RabbitMQ -> exchange "alerts.exchange",
+routing key "alerts.new" -> ver paso 6.
+
+
+=====================================================================
+6. ms_monitoreo -> RabbitMQ -> ms_alertas : MENSAJE ASINCRONO
+=====================================================================
+Esta NO es una llamada HTTP. Cuando se crea un focus en ms_monitoreo
+(paso 4), FocusService publica un mensaje JSON en RabbitMQ que
+ms_alertas consume con @RabbitListener (clase AlertListener).
+
+Para probar este flujo sin pasar por ms_monitoreo, se puede publicar
+el mensaje a mano desde la consola de administracion de RabbitMQ:
+  http://localhost:15672 (usuario: guest, password: guest)
+  -> Exchanges -> alerts.exchange -> Publish message
+
+Exchange:     alerts.exchange
+Routing key:  alerts.new
+Content-Type: application/json
+
+MENSAJE (Payload):
+-------------------
+{
+  "reportId": 1,
+  "geometry": "POINT (-70.6483 -33.4569)",
+  "description": "Foco de incendio cerca del parque central",
+  "severity": "HIGH"
+}
+
+EFECTO en ms_alertas (no hay respuesta HTTP, es un consumer):
+-----------------------------------------------------------------
+- AlertService.handleNewFocus(...) envia un email via SMTP
+  (revisar en MailHog: http://localhost:8025) y un SMS simulado
+  (queda solo en el log del contenedor).
+- Si el envio de email falla (ej. SMTP no disponible), no se envia
+  el SMS y el mensaje se persiste en la tabla failed_alert con el
+  error, para reprocesarse despues (FailedAlertReprocessor).
+
+EJEMPLO de mensaje que fuerza un payload nulo/invalido (para probar
+el caso limite "se ignora sin lanzar excepcion"):
+-----------------------------------------------------------------
+Exchange:     alerts.exchange
+Routing key:  alerts.new
+Payload:      (vacio / null)
+
+
+=====================================================================
+7. CLIENTE -> ms_monitoreo : LISTAR FOCOS Y SUSCRIBIRSE A SSE
+=====================================================================
+PETICION (listar):
+---------------------
+GET /api/monitor/focus?status=NEW&page=0&size=20 HTTP/1.1
+Host: localhost:8182
+Authorization: Bearer {{token}}
+
+RESPUESTA (200 OK):
+--------------------
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "content": [
+    {
+      "id": 5,
+      "reportId": 1,
+      "geometry": "POINT (-70.6483 -33.4569)",
+      "description": "Foco de incendio cerca del parque central",
+      "status": "NEW",
+      "severity": "HIGH",
+      "createdAt": "2026-06-17T10:15:30.456Z"
+    }
+  ],
+  "totalElements": 1,
+  "totalPages": 1,
+  "number": 0,
+  "size": 20
+}
+
+PETICION (stream SSE, conexion persistente):
+-----------------------------------------------
+GET /api/monitor/stream HTTP/1.1
+Host: localhost:8182
+Authorization: Bearer {{token}}
+Accept: text/event-stream
+
+RESPUESTA (eventos enviados mientras la conexion esta abierta):
+-------------------------------------------------------------------
+HTTP/1.1 200 OK
+Content-Type: text/event-stream
+
+event: focus-created
+data: {"id":5,"reportId":1,"geometry":"POINT (-70.6483 -33.4569)","description":"Foco de incendio cerca del parque central","status":"NEW","severity":"HIGH","createdAt":"2026-06-17T10:15:30.456Z"}
+
+
+=====================================================================
+8. CLIENTE -> ms_integracion : URL PRESIGNADA DE MINIO
+=====================================================================
+Servicio independiente, sin relacion directa con el flujo de
+reportes/alertas/monitoreo; se usa para evidencia multimedia.
+
+PETICION:
+---------
+POST /api/minio/presigned HTTP/1.1
+Host: localhost:8090
+Content-Type: application/json
+
+{
+  "objectName": "evidencias/imagen-1.jpg",
+  "expirySeconds": 3600
+}
+
+RESPUESTA (200 OK):
+--------------------
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "url": "https://minio.local/integracion/evidencias/imagen-1.jpg?sig=abc123"
+}
+
+RESPUESTA si falta objectName (400 Bad Request):
+----------------------------------------------------
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "error": "objectName is required"
+}
+
+
+=====================================================================
+9. FRONTEND -> bff -> api_gateway -> ms_reportes : FLUJO COMPLETO
+=====================================================================
+Asi consume la API el frontend real: llama al BFF, el BFF reenvia
+al api_gateway con el JWT, y el api_gateway rutea al microservicio
+interno (172.20.0.11:8080).
+
+PETICION (frontend -> bff):
+-------------------------------
+PATCH /bff/reports/1/status HTTP/1.1
+Host: localhost:8086
+Content-Type: application/json
+Authorization: Bearer {{token_admin}}
+
+{
+  "status": "CONTROLADO"
+}
+
+RESPUESTA si el usuario NO tiene ROLE_ADMIN (403 Forbidden, generado
+por el propio bff antes de reenviar al gateway):
+-------------------------------------------------------------------
+HTTP/1.1 403 Forbidden
+Content-Type: application/json
+
+{
+  "error": "Acceso denegado: se requiere rol de administrador"
+}
+
+RESPUESTA si el usuario SI tiene ROLE_ADMIN (200 OK, viene de
+ms_reportes a traves del api_gateway):
+-------------------------------------------------------------------
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "id": 1,
+  "reporterEmail": "tester@example.com",
+  "latitude": -33.4569,
+  "longitude": -70.6483,
+  "description": "Foco de incendio cerca del parque central",
+  "mediaUrls": [],
+  "status": "CONTROLADO",
+  "severity": "HIGH",
+  "incidentType": "incendio forestal",
+  "createdAt": "2026-06-17T10:15:30.123Z"
+}
+
+
+=====================================================================
+10. ERRORES TIPICOS A PROBAR ENTRE SERVICIOS
+=====================================================================
+
+10.1 ms_reportes -> ms_monitoreo con JWT vencido/invalido:
+------------------------------------------------------------
+PETICION:
+POST /api/monitor/focus HTTP/1.1
+Host: localhost:8182
+Content-Type: application/json
+Authorization: Bearer token-invalido-o-vencido
+
+{
+  "reportId": 1,
+  "geometry": "POINT(-70.6483 -33.4569)",
+  "description": "prueba"
+}
+
+RESPUESTA:
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json
+
+{
+  "error": "Token invalido o expirado"
+}
+
+10.2 ms_monitoreo : geometria WKT invalida:
+----------------------------------------------
+PETICION:
+POST /api/monitor/focus HTTP/1.1
+Host: localhost:8182
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reportId": 1,
+  "geometry": "ESTO_NO_ES_WKT",
+  "description": "prueba de geometria invalida"
+}
+
+RESPUESTA:
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "error": "Invalid geometry WKT: ESTO_NO_ES_WKT"
+}
+
+10.3 ms_reportes : agregar evento a un reporte inexistente:
+-----------------------------------------------------------------
+PETICION:
+POST /api/reports/9999/events HTTP/1.1
+Host: localhost:8081
+Content-Type: application/json
+
+{
+  "type": "DISPATCHED",
+  "payload": "Brigada en camino"
+}
+
+RESPUESTA:
+HTTP/1.1 404 Not Found

@@ -2,6 +2,18 @@
 
 Microservicio de integración ligero para el sistema.
 
+## Módulos del proyecto
+
+Este microservicio es parte de un sistema mayor compuesto por:
+- `frontend` — SPA en React/Vite: login, dashboard, mapa de focos, reportes, alertas y panel de administración.
+- `bff` — Backend for Frontend: API simplificada para el frontend, agrega CORS y valida roles antes de reenviar al gateway.
+- `api_gateway` — Punto único de entrada al backend: rutea cada request al microservicio interno correspondiente.
+- `ms_usuarios` — Autenticación, datos personales y roles/permisos.
+- `ms_reportes` — Gestión de reportes de incendios y su ciclo de vida.
+- `ms_monitoreo` — Seguimiento geoespacial de focos activos en tiempo real (SSE).
+- `ms_alertas` — Emisión de alertas por email y SMS (simulado) ante nuevos focos.
+- `ms_integracion` (este módulo) — Integración con MinIO (evidencia) y RabbitMQ.
+
 Características incluidas:
 
 - RabbitMQ: exchange `integracion.exchange`, queue `integracion.queue`, routing `integracion.routing`.
@@ -17,24 +29,35 @@ Características incluidas:
 - RabbitMQ (con plugin Management opcional en `:15672`)
 - MinIO (opcional para probar presigned URLs)
 
-## Build
+## Instalación
 
 Desde la raíz del repo (el POM raíz incluye `ms_integracion`):
 
 ```powershell
-.\mvnw -pl ms_integracion clean package -DskipTests
+.\mvnw -pl ms_integracion clean install -DskipTests
 ```
 
 O directamente dentro del módulo:
 
 ```powershell
 cd ms_integracion
-.\mvnw clean package -DskipTests
+.\mvnw clean install -DskipTests
 ```
 
-## Ejecutar localmente
+## Ejecución
 
-1. Arranca RabbitMQ y MinIO (por ejemplo con Docker). Ejemplo mínimo:
+Opción A — con Docker Compose (recomendado, levanta este servicio junto con RabbitMQ; MinIO no está incluido en `docker-compose.yml` y debe levantarse aparte si se necesita probar presigned URLs):
+
+```bash
+cd ..
+docker-compose up -d --build rabbitmq ms_integracion
+```
+
+El servicio queda disponible en `http://localhost:8090`.
+
+Opción B — standalone:
+
+1. Levanta RabbitMQ y MinIO (por ejemplo con Docker). Ejemplo mínimo:
 
 ```bash
 docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management
@@ -48,7 +71,7 @@ cd ms_integracion
 .\mvnw spring-boot:run
 ```
 
-3. Publicar evento de prueba (requiere Management API activo):
+3. Publica un evento de prueba (requiere Management API activo):
 
 ```bash
 ./scripts/publish_event.sh
@@ -56,7 +79,7 @@ cd ms_integracion
 .\scripts\publish_event.ps1
 ```
 
-4. Verifica logs: `EventConsumer` imprimirá el evento recibido.
+4. Verifica los logs: `EventConsumer` imprimirá el evento recibido.
 
 ## Probar MinIO presigned URL
 

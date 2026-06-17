@@ -4,6 +4,18 @@ ms_alertas
 Propósito
 - Recibir eventos de nuevos focos de incendio (vía RabbitMQ o webhook HTTP) y emitir alertas por email y SMS (simulado) a la comunidad/autoridades.
 
+Módulos del proyecto
+---------------------
+Este microservicio es parte de un sistema mayor compuesto por:
+- `frontend` — SPA en React/Vite: login, dashboard, mapa de focos, reportes, alertas y panel de administración.
+- `bff` — Backend for Frontend: API simplificada para el frontend, agrega CORS y valida roles antes de reenviar al gateway.
+- `api_gateway` — Punto único de entrada al backend: rutea cada request al microservicio interno correspondiente.
+- `ms_usuarios` — Autenticación, datos personales y roles/permisos.
+- `ms_reportes` — Gestión de reportes de incendios y su ciclo de vida.
+- `ms_monitoreo` — Seguimiento geoespacial de focos activos en tiempo real (SSE).
+- `ms_alertas` (este módulo) — Emisión de alertas por email y SMS (simulado) ante nuevos focos.
+- `ms_integracion` — Integración con MinIO (evidencia) y RabbitMQ.
+
 Decisiones principales
 - Consumo asíncrono de eventos desde RabbitMQ (`AlertListener`, cola definida en `RabbitConfig`).
 - `AlertService.handleNewFocus` envía la alerta por `EmailSender` y `SmsSender`; usa `@Retry`/`@CircuitBreaker` (Resilience4j) para tolerar fallas transitorias de los proveedores.
@@ -17,6 +29,33 @@ Endpoints
 Notas
 - `SmsSender` simula el envío de SMS solo con logging (no depende de un proveedor externo como Twilio).
 - En `docker-compose.yml`, este servicio usa Mailhog como servidor SMTP de prueba en lugar de SMTP real.
+
+Instalación
+-----------
+Requisitos: Java 21, Maven (o el wrapper `./mvnw` / `mvnw.cmd`), una base PostgreSQL, RabbitMQ y un servidor SMTP (en desarrollo se usa MailHog).
+
+```bash
+cd ms_alertas
+mvn clean install
+```
+
+Ejecución
+---------
+Opción A — con Docker Compose (recomendado, levanta este servicio junto con su base PostgreSQL, RabbitMQ y MailHog):
+
+```bash
+cd ..
+docker-compose up -d --build postgres_ms_alertas rabbitmq mailhog ms_alertas
+```
+
+El servicio queda disponible en `http://localhost:8083` (puerto interno 8080). Los correos enviados se pueden revisar en la interfaz de MailHog, `http://localhost:8025`.
+
+Opción B — standalone (requiere PostgreSQL, RabbitMQ y un servidor SMTP accesibles; configurar `SPRING_DATASOURCE_URL`, `SPRING_RABBITMQ_HOST` y las variables `SPRING_MAIL_*`):
+
+```bash
+mvn clean package
+java -jar target/ms_alertas-0.0.1-SNAPSHOT.jar
+```
 
 Pruebas unitarias
 -----------------
