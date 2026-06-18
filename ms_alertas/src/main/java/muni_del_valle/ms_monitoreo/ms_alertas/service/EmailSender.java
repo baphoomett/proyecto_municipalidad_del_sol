@@ -42,17 +42,28 @@ public class EmailSender {
             "Se ha detectado un nuevo foco de incendio.\n\n" +
             "Reporte ID: " + req.getReportId() + "\n" +
             "Descripción: " + req.getDescription() + "\n" +
-            "Severidad: " + req.getSeverity() + "\n" +
+            "Severidad: " + translateSeverity(req.getSeverity()) + "\n" +
             "Ubicación: " + locationText + "\n" +
             (mapsLink.isEmpty() ? "" : "Ver en mapa: " + mapsLink + "\n") +
             "\nPor favor tome las medidas necesarias.\n" +
-            "Municipalidad Valle del Sol - Sistema de Emergencias"
+            "Municipalidad Valle del Sol - Sistema de Emergencias\n" +
+            "Protegiendo nuestra comuna, las 24 horas del día."
         );
         mailSender.send(msg);
         log.info("[EmailSender] Email sent for report {}", req.getReportId());
     } catch (Exception ex) {
         log.error("[EmailSender] Email send failed: {}", ex.getMessage());
         throw new RuntimeException(ex);
+        }
+    }
+
+    private String translateSeverity(String severity) {
+        if (severity == null) return "Sin definir";
+        switch (severity.toUpperCase()) {
+            case "HIGH": case "ALTA": return "Alta";
+            case "MEDIUM": case "MEDIA": return "Media";
+            case "LOW": case "BAJA": return "Baja";
+            default: return severity;
         }
     }
 }

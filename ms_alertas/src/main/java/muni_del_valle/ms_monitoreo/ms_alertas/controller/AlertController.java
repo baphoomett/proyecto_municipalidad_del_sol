@@ -39,4 +39,10 @@ public class AlertController {
     public ResponseEntity<List<Alert>> getAlerts() {
         return ResponseEntity.ok(alertRepository.findAll());
     }
+
+    @DeleteMapping("/by-report/{reportId}")
+    public ResponseEntity<?> deleteByReportId(@PathVariable Long reportId) {
+        alertRepository.deleteByReportId(reportId);
+        return ResponseEntity.noContent().build();
+    }
 }

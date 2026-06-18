@@ -1,15 +1,39 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import Footer from '../components/Footer';
-import Navbar from '../components/Navbar';
+import Layout from '../components/Layout';
+import {
+  Bell, TreePine, Home, Car, Factory, HelpCircle, Loader2,
+} from 'lucide-react';
+
+const TYPE_OPTIONS = {
+  FORESTAL: { label: 'Forestal', icon: TreePine },
+  VIVIENDA: { label: 'Vivienda', icon: Home },
+  VEHICULAR: { label: 'Vehicular', icon: Car },
+  INDUSTRIAL: { label: 'Industrial', icon: Factory },
+  OTRO: { label: 'Otro', icon: HelpCircle },
+};
+
+const SEVERITY_STYLES = {
+  ALTA: { border: 'border-l-red-500', text: 'text-red-600 dark:text-red-400', label: 'Alta' },
+  MEDIA: { border: 'border-l-amber-500', text: 'text-amber-600 dark:text-amber-400', label: 'Media' },
+  BAJA: { border: 'border-l-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', label: 'Baja' },
+};
+
+// El backend a veces envía la severidad en inglés (mismo enum que los reportes)
+const SEVERITY_ALIASES = {
+  HIGH: 'ALTA',
+  MEDIUM: 'MEDIA',
+  LOW: 'BAJA',
+};
+
+const STATUS_LABELS = {
+  ACTIVE: 'Activo',
+  RESOLVED: 'Resuelto',
+};
 
 export default function AlertsPage() {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { logout } = useAuth();
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchAlerts();
@@ -26,165 +50,78 @@ export default function AlertsPage() {
     }
   };
 
-  const getSeverityColor = (severity) => {
-    if (severity === 'ALTA') return '#e63946';
-    if (severity === 'MEDIA') return '#f4a261';
-    if (severity === 'BAJA') return '#2a9d8f';
-    return '#999';
-};
-
-const getSeverityLabel = (severity) => {
-    if (severity === 'ALTA') return '🔴 Alta';
-    if (severity === 'MEDIA') return '🟡 Media';
-    if (severity === 'BAJA') return '🟢 Baja';
-    return severity || 'Sin definir';
-};
-
-const TYPE_LABELS = {
-    FORESTAL: '🌲 Forestal',
-    VIVIENDA: '🏠 Vivienda',
-    VEHICULAR: '🚗 Vehicular',
-    INDUSTRIAL: '🏭 Industrial',
-    OTRO: '❓ Otro',
-};
-
-const STATUS_LABELS = {
-    ACTIVE: 'Activo',
-    RESOLVED: 'Resuelto',
-};
-
-const getTypeLabel = (type) => TYPE_LABELS[type] || type;
+  const getTypeInfo = (type) => TYPE_OPTIONS[type];
+  const getSeverityStyle = (severity) => {
+    const normalized = SEVERITY_ALIASES[severity] || severity;
+    return SEVERITY_STYLES[normalized] || { border: 'border-l-slate-300 dark:border-l-slate-600', text: 'text-slate-500', label: severity || 'Sin definir' };
+  };
 
   return (
-    <div style={styles.container}>
-      <Navbar />
-
-      <div style={styles.content}>
-        <h1 style={styles.title}>🔔 Sistema de Alertas</h1>
-        <p style={styles.subtitle}>{alerts.length} Alertas registradas</p>
+    <Layout>
+      <div className="px-6 py-8 sm:px-10">
+        <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          Sistema de Alertas
+        </h1>
+        <p className="mt-1 mb-7 text-sm text-slate-500 dark:text-slate-400">{alerts.length} alertas registradas</p>
 
         {loading ? (
-          <p style={styles.loading}>Cargando alertas...</p>
+          <div className="flex flex-col items-center gap-3 py-16">
+            <Loader2 size={28} strokeWidth={2} className="animate-spin text-slate-400 dark:text-slate-600" />
+            <p className="text-slate-400 dark:text-slate-500">Cargando alertas...</p>
+          </div>
         ) : alerts.length === 0 ? (
-          <div style={styles.emptyContainer}>
-            <p style={styles.empty}>No hay alertas registradas.</p>
-            <p style={styles.emptyHint}>Las alertas se generan automáticamente cuando se reporta un foco de incendio.</p>
+          <div className="flex flex-col items-center gap-2 py-16 text-center">
+            <Bell size={32} strokeWidth={1.6} className="mb-1 text-slate-400 dark:text-slate-600" />
+            <p className="text-base text-slate-600 dark:text-slate-300">No hay alertas registradas.</p>
+            <p className="max-w-sm text-sm text-slate-400 dark:text-slate-500">
+              Las alertas se generan automáticamente cuando se reporta un foco de incendio.
+            </p>
           </div>
         ) : (
-          <div style={styles.alertsList}>
-            {alerts.map((alert) => (
-              <div key={alert.id} style={styles.alertCard}>
-                <div style={styles.alertHeader}>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <span style={{ ...styles.badge, backgroundColor: getSeverityColor(alert.severity) }}>
-                        {getSeverityLabel(alert.severity)}
+          <div className="flex flex-col gap-3">
+            {alerts.map((alert) => {
+              const typeInfo = getTypeInfo(alert.incidentType);
+              const sevStyle = getSeverityStyle(alert.severity);
+              const isActive = alert.status === 'ACTIVA';
+              return (
+                <div
+                  key={alert.id}
+                  className={`rounded-xl border border-l-4 border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 ${sevStyle.border} dark:bg-slate-900`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className={`text-sm font-bold ${sevStyle.text}`}>
+                        Severidad {sevStyle.label}
+                      </span>
+                      {typeInfo && (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                          <typeInfo.icon size={12} strokeWidth={2} />
+                          {typeInfo.label}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">
+                      {new Date(alert.createdAt).toLocaleDateString('es-CL')}
                     </span>
-                    {alert.incidentType && (
-                        <span style={styles.tag}>{getTypeLabel(alert.incidentType)}</span>
-                    )}
+                  </div>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                    {alert.description || 'Sin descripción'}
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+                    <span className="text-xs text-slate-400 dark:text-slate-500">
+                      Reporte #{alert.reportId}
+                    </span>
+                    <span className={`flex items-center gap-1.5 text-xs font-bold ${isActive ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${isActive ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                      {STATUS_LABELS[alert.status] || alert.status}
+                    </span>
+                  </div>
                 </div>
-                <span style={styles.date}>
-                    {new Date(alert.createdAt).toLocaleDateString('es-CL')}
-                </span>
-            </div>
-                <p style={styles.alertDesc}>{alert.description || 'Sin descripción'}</p>
-                <div style={styles.alertFooter}>
-                  <span style={styles.meta}>📋 Reporte #{alert.reportId}</span>
-                  <span style={{
-                    ...styles.statusBadge,
-                    backgroundColor: alert.status === 'ACTIVA' ? '#e63946' : '#2a9d8f'
-                  }}>
-                    {STATUS_LABELS[alert.status] || alert.status}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
-      <Footer />
-    </div>
+    </Layout>
   );
 }
-
-const styles = {
-  container: { minHeight: '100vh', backgroundColor: '#f0f2f5' },
-  navbar: {
-    backgroundColor: '#e63946',
-    padding: '1rem 2rem',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  logo: { color: 'white', margin: 0, cursor: 'pointer' },
-  navLinks: { display: 'flex', gap: '1rem' },
-  navBtn: {
-    backgroundColor: 'transparent',
-    border: '1px solid white',
-    color: 'white',
-    padding: '0.5rem 1rem',
-    borderRadius: '8px',
-    cursor: 'pointer',
-  },
-  navBtnRed: {
-    backgroundColor: 'white',
-    border: 'none',
-    color: '#e63946',
-    padding: '0.5rem 1rem',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-  },
-  content: { padding: '2rem' },
-  title: { color: '#333', margin: '0 0 0.25rem 0' },
-  subtitle: { color: '#666', margin: '0 0 1.5rem 0' },
-  loading: { color: '#888', textAlign: 'center', marginTop: '2rem' },
-  emptyContainer: { textAlign: 'center', marginTop: '3rem' },
-  empty: { color: '#888', fontSize: '1.1rem' },
-  emptyHint: { color: '#aaa', fontSize: '0.9rem' },
-  alertsList: { display: 'flex', flexDirection: 'column', gap: '1rem' },
-  alertCard: {
-    backgroundColor: 'white',
-    padding: '1.2rem',
-    borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
-  },
-  alertHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '0.5rem',
-  },
-  badge: {
-    color: 'white',
-    padding: '0.25rem 0.75rem',
-    borderRadius: '20px',
-    fontSize: '0.8rem',
-    fontWeight: 'bold',
-  },
-
-  tag: {
-    backgroundColor: '#f0f2f5',
-    color: '#555',
-    padding: '0.2rem 0.7rem',
-    borderRadius: '20px',
-    fontSize: '0.8rem',
-},
-
-  date: { color: '#888', fontSize: '0.85rem' },
-  alertDesc: { margin: '0.5rem 0', color: '#333' },
-  alertFooter: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: '0.5rem',
-  },
-  meta: { color: '#666', fontSize: '0.85rem' },
-  statusBadge: {
-    color: 'white',
-    padding: '0.2rem 0.6rem',
-    borderRadius: '20px',
-    fontSize: '0.75rem',
-    fontWeight: 'bold',
-  },
-};

@@ -1,303 +1,174 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Flame, Siren, ShieldCheck, BellRing, ArrowRight, Plus, Phone } from 'lucide-react';
+import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
-import Navbar from '../components/Navbar';
+import api from '../services/api';
+
+const STATUS_DOT = {
+  ACTIVO: 'bg-red-500',
+  EN_COMBATE: 'bg-amber-500',
+  CONTROLADO: 'bg-blue-500',
+  EXTINGUIDO: 'bg-emerald-500',
+};
+
+const EMERGENCY_CONTACTS = [
+  { label: 'Bomberos', number: '132' },
+  { label: 'Ambulancia (SAMU)', number: '131' },
+  { label: 'Carabineros', number: '133' },
+];
 
 export default function DashboardPage() {
-  const { logout } = useAuth();
+  const [reports, setReports] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const { email } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get('/bff/reports');
+        setReports(res.data.content || res.data);
+      } catch (err) {
+        console.error('Error al cargar reportes', err);
+      }
+      try {
+        const res = await api.get('/bff/alerts');
+        setAlerts(res.data);
+      } catch (err) {
+        console.error('Error al cargar alertas', err);
+      }
+    })();
+  }, []);
 
-  const cards = [
+  const stats = [
     {
-      icon: '📋',
-      title: 'Reportes',
-      desc: 'Ver y crear reportes de incendios en tiempo real',
-      path: '/reports',
-      color: '#e63946',
+      label: 'Focos activos',
+      value: reports.filter((r) => r.status === 'ACTIVO').length,
+      icon: Flame,
+      color: 'text-red-600 dark:text-red-400',
+      bg: 'bg-red-50 dark:bg-red-500/10',
     },
     {
-      icon: '🗺️',
-      title: 'Mapa',
-      desc: 'Visualizar focos activos y zonas de riesgo',
-      path: '/map',
-      color: '#2a9d8f',
+      label: 'En combate',
+      value: reports.filter((r) => r.status === 'EN_COMBATE').length,
+      icon: Siren,
+      color: 'text-amber-600 dark:text-amber-400',
+      bg: 'bg-amber-50 dark:bg-amber-400/10',
     },
     {
-      icon: '🔔',
-      title: 'Alertas',
-      desc: 'Sistema de notificaciones y alertas comunales',
-      path: '/alerts',
-      color: '#e9c46a',
+      label: 'Controlados',
+      value: reports.filter((r) => r.status === 'CONTROLADO').length,
+      icon: ShieldCheck,
+      color: 'text-blue-600 dark:text-blue-400',
+      bg: 'bg-blue-50 dark:bg-blue-500/10',
+    },
+    {
+      label: 'Alertas activas',
+      value: alerts.filter((a) => a.status === 'ACTIVA' || a.status === 'ACTIVE').length,
+      icon: BellRing,
+      color: 'text-emerald-600 dark:text-emerald-400',
+      bg: 'bg-emerald-50 dark:bg-emerald-500/10',
     },
   ];
 
+  const recentReports = [...reports]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 5);
+
   return (
-    <div style={styles.wrapper}>
-      {/* Navbar */}
-      <Navbar />
+    <Layout>
+      <div className="px-6 py-8 sm:px-10">
+        <p className="text-sm font-medium text-slate-400 dark:text-slate-500">
+          {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        </p>
+        <h1 className="font-display mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+          Hola, {email?.split('@')[0]}
+        </h1>
+        <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+          Resumen operativo del sistema de gestión de emergencias.
+        </p>
 
-      {/* Hero */}
-      <div style={styles.hero}>
-        <div style={styles.heroContent}>
-          <h1 style={styles.heroTitle}>Sistema de Gestión de Emergencias</h1>
-          <p style={styles.heroSubtitle}>
-            Municipalidad Valle del Sol — Subdirección de Gestión de Emergencias
-          </p>
-        </div>
-      </div>
-
-      {/* Cards */}
-      <div style={styles.cardsSection}>
-        <h2 style={styles.sectionTitle}>Módulos del Sistema</h2>
-        <div style={styles.cardsGrid}>
-          {cards.map((card) => (
+        <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {stats.map(({ label, value, icon: Icon, color, bg }) => (
             <div
-              key={card.path}
-              style={styles.card}
-              onClick={() => navigate(card.path)}
-              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-6px)'}
-              onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+              key={label}
+              className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
             >
-              <div style={{ ...styles.cardIcon, backgroundColor: card.color }}>
-                <span style={styles.cardEmoji}>{card.icon}</span>
+              <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-lg ${bg}`}>
+                <Icon size={18} strokeWidth={2} className={color} />
               </div>
-              <h3 style={styles.cardTitle}>{card.title}</h3>
-              <p style={styles.cardDesc}>{card.desc}</p>
-              <span style={{ ...styles.cardBtn, borderColor: card.color, color: card.color }}>
-                Ir al módulo →
-              </span>
+              <p className="font-display text-2xl font-extrabold text-slate-900 dark:text-white">{value}</p>
+              <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
             </div>
           ))}
         </div>
-      </div>
 
-      {/* Sobre Nosotros */}
-      <div style={styles.aboutSection}>
-        <h2 style={styles.sectionTitle}>Sobre Nosotros</h2>
-        <div style={styles.aboutGrid}>
-          <div style={styles.aboutCard}>
-            <div style={styles.aboutIcon}>🪪</div>
-            <h3 style={styles.aboutTitle}>Misión</h3>
-            <p style={styles.aboutText}>
-              Prevenir, detectar y coordinar situaciones de riesgo en la comuna de Valle del Sol,
-              especializándonos en catástrofes de tipo forestal y urbano, protegiendo la vida
-              y los bienes de nuestra comunidad.
-            </p>
+        <div className="mt-8 flex flex-col items-start justify-between gap-4 rounded-xl bg-gradient-to-r from-red-600 to-red-700 p-6 text-white sm:flex-row sm:items-center sm:p-8">
+          <div>
+            <p className="font-display text-lg font-extrabold">¿Detectaste un foco de incendio?</p>
+            <p className="mt-1 text-sm text-red-100">Repórtalo de inmediato para activar la respuesta de la subdirección.</p>
           </div>
-          <div style={styles.aboutCard}>
-            <div style={styles.aboutIcon}>👁️‍🗨️</div>
-            <h3 style={styles.aboutTitle}>Visión</h3>
-            <p style={styles.aboutText}>
-              Ser la subdirección de gestión de emergencias más moderna y eficiente de la región,
-              liderando la transformación digital en la respuesta ante emergencias y catástrofes,
-              garantizando la seguridad comunal.
-            </p>
+          <button
+            onClick={() => navigate('/reports')}
+            className="flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-white px-5 py-2.5 text-sm font-bold text-red-600 shadow-lg transition-colors hover:bg-red-50"
+          >
+            <Plus size={16} strokeWidth={2.5} /> Crear reporte
+          </button>
+        </div>
+
+        <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-3">
+          <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 lg:col-span-2">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-slate-900 dark:text-white">Actividad reciente</h2>
+              <button
+                onClick={() => navigate('/reports')}
+                className="flex items-center gap-1 text-sm font-semibold text-red-600 dark:text-red-400"
+              >
+                Ver todos <ArrowRight size={14} strokeWidth={2.25} />
+              </button>
+            </div>
+            <div className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
+              {recentReports.length === 0 ? (
+                <p className="py-8 text-center text-sm text-slate-400 dark:text-slate-500">Sin actividad reciente.</p>
+              ) : (
+                recentReports.map((r) => (
+                  <div key={r.id} className="flex items-center gap-3 py-3">
+                    <span className={`h-2 w-2 flex-shrink-0 rounded-full ${STATUS_DOT[r.status] || 'bg-slate-400'}`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        {r.description || 'Incidente reportado'}
+                      </p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">
+                        {r.status?.replace('_', ' ')} · {new Date(r.createdAt).toLocaleDateString('es-CL')}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+            <h2 className="font-display text-lg font-bold text-slate-900 dark:text-white">Números de emergencia</h2>
+            <div className="mt-3 space-y-1">
+              {EMERGENCY_CONTACTS.map(({ label, number }) => (
+                <a
+                  key={number}
+                  href={`tel:${number}`}
+                  className="flex items-center justify-between rounded-lg px-2.5 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  <span className="flex items-center gap-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300">
+                    <Phone size={15} strokeWidth={2} className="text-red-600 dark:text-red-400" />
+                    {label}
+                  </span>
+                  <span className="font-display font-bold text-slate-900 dark:text-white">{number}</span>
+                </a>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-
-
-
-
-      {/* Footer */}
-      <footer style={styles.footer}>
-        <p>© 2026 Municipalidad Valle del Sol — Sistema de Emergencias</p>
-      </footer>
-    </div>
+    </Layout>
   );
 }
-
-const styles = {
-  wrapper: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    backgroundColor: '#f8f9fa',
-    fontFamily: "'Segoe UI', sans-serif",
-  },
-  navbar: {
-    width: '100%',
-    backgroundColor: '#e63946',
-    padding: '0 2rem',
-    height: '64px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    boxSizing: 'border-box',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-  },
-  navBrand: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    cursor: 'pointer',
-  },
-  brandText: {
-    color: 'white',
-    fontSize: '1.2rem',
-    fontWeight: 'bold',
-  },
-  navLinks: {
-    display: 'flex',
-    gap: '0.75rem',
-    alignItems: 'center',
-  },
-  navBtn: {
-    backgroundColor: 'transparent',
-    border: '1px solid rgba(255,255,255,0.6)',
-    color: 'white',
-    padding: '0.4rem 1rem',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.9rem',
-    transition: 'all 0.2s',
-  },
-  navBtnOutline: {
-    backgroundColor: 'white',
-    border: 'none',
-    color: '#e63946',
-    padding: '0.4rem 1rem',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.9rem',
-    fontWeight: 'bold',
-  },
-  hero: {
-    width: '100%',
-    padding: '4rem 2rem',
-    boxSizing: 'border-box',
-    backgroundImage: 'linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0.55)), url("/bomberos.jpg")',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundRepeat: 'no-repeat',
-  },
-  heroContent: {
-    maxWidth: '800px',
-    margin: '0 auto',
-    textAlign: 'center',
-  },
-  heroTitle: {
-    color: 'white',
-    fontSize: '2rem',
-    fontWeight: 'bold',
-    margin: '0 0 0.5rem 0',
-  },
-  heroSubtitle: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: '1rem',
-    margin: 0,
-  },
-  cardsSection: {
-    flex: 1,
-    padding: '2.5rem 2rem',
-    boxSizing: 'border-box',
-  },
-  sectionTitle: {
-    textAlign: 'center',
-    color: '#333',
-    marginBottom: '2rem',
-    fontSize: '1.3rem',
-    fontWeight: '600',
-  },
-  cardsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-    gap: '1.5rem',
-    maxWidth: '1100px',
-    margin: '0 auto',
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    padding: '2rem',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-    cursor: 'pointer',
-    transition: 'transform 0.2s, box-shadow 0.2s',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    textAlign: 'center',
-    gap: '0.75rem',
-  },
-  cardIcon: {
-    width: '64px',
-    height: '64px',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardEmoji: {
-    fontSize: '1.8rem',
-  },
-  cardTitle: {
-    margin: 0,
-    color: '#222',
-    fontSize: '1.2rem',
-    fontWeight: '600',
-  },
-  cardDesc: {
-    margin: 0,
-    color: '#666',
-    fontSize: '0.9rem',
-    lineHeight: '1.5',
-  },
-  cardBtn: {
-    marginTop: '0.5rem',
-    fontSize: '0.85rem',
-    fontWeight: '600',
-    border: '1.5px solid',
-    padding: '0.4rem 1rem',
-    borderRadius: '20px',
-  },
-  footer: {
-    textAlign: 'center',
-    padding: '1rem',
-    color: '#aaa',
-    fontSize: '0.8rem',
-    borderTop: '1px solid #eee',
-  },
-
-  aboutSection: {
-    padding: '2.5rem 2rem',
-    backgroundColor: 'white',
-    boxSizing: 'border-box',
-  },
-  aboutGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '1.5rem',
-    maxWidth: '1100px',
-    margin: '0 auto',
-  },
-  aboutCard: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: '16px',
-    padding: '2rem',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    textAlign: 'center',
-    gap: '0.75rem',
-    borderTop: '4px solid #e63946',
-  },
-  aboutIcon: {
-    fontSize: '2.5rem',
-  },
-  aboutTitle: {
-    color: '#222',
-    fontSize: '1.2rem',
-    fontWeight: '600',
-    margin: 0,
-  },
-  aboutText: {
-    color: '#555',
-    fontSize: '0.95rem',
-    lineHeight: '1.7',
-    margin: 0,
-  },
-};

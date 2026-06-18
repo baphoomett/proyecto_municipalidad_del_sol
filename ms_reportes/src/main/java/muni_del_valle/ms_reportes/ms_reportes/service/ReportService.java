@@ -105,4 +105,13 @@ public class ReportService {
             return Optional.empty();
         }
     }
+
+    @Transactional
+    public boolean deleteReport(Long reportId) {
+        Optional<Report> or = reportRepository.findById(reportId);
+        if (or.isEmpty()) return false;
+        eventRepository.deleteByReportId(reportId);
+        reportRepository.delete(or.get());
+        return true;
+    }
 }

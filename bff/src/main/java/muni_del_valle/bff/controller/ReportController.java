@@ -43,4 +43,15 @@ public class ReportController {
         }
         return reportService.updateStatus(id, body.get("status"), token);
     }
+
+    @DeleteMapping("/{id}/extinguish")
+    public ResponseEntity<?> extinguishReport(@PathVariable Long id,
+                                               @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        String role = jwtUtil.extractRole(token);
+        if (!"ROLE_ADMIN".equals(role)) {
+            return ResponseEntity.status(403).body("Acceso denegado: se requiere rol de administrador");
+        }
+        return reportService.extinguishReport(id, token);
+    }
 }

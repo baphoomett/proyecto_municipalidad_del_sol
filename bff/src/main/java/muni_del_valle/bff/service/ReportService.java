@@ -41,4 +41,28 @@ public class ReportService {
         HttpEntity<java.util.Map<String, String>> request = new HttpEntity<>(body, headers);
         return restTemplate.exchange(gatewayUrl + "/api/reports/" + id + "/status", HttpMethod.PATCH, request, Object.class);
     }
+
+    public ResponseEntity<?> extinguishReport(Long id, String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        HttpEntity<?> request = new HttpEntity<>(headers);
+
+        try {
+            restTemplate.exchange(
+                gatewayUrl + "/api/alerts/by-report/" + id,
+                HttpMethod.DELETE,
+                request,
+                Void.class
+            );
+        } catch (Exception ex) {
+            // si no existe alerta asociada, o ms_alertas falla, no debe bloquear el borrado del reporte
+        }
+
+        return restTemplate.exchange(
+            gatewayUrl + "/api/reports/" + id,
+            HttpMethod.DELETE,
+            request,
+            Void.class
+        );
+    }
 }

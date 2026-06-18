@@ -82,4 +82,10 @@ public class ReportController {
         Optional<Report> updated = reportService.updateStatus(id, req.getStatus());
         return updated.map(r -> ResponseEntity.ok(r)).orElseGet(() -> ResponseEntity.notFound().build());
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteReport(@PathVariable Long id) {
+        boolean deleted = reportService.deleteReport(id);
+        return deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+    }
 }

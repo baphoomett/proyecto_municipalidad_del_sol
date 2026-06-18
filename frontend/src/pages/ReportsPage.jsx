@@ -1,26 +1,47 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import Footer from '../components/Footer';
-import Navbar from '../components/Navbar';
+import { reverseGeocode } from '../services/geocode';
+import Layout from '../components/Layout';
+import {
+  Plus, MapPin, User, CheckCircle2, XCircle, TreePine, Home, Car, Factory,
+  HelpCircle, FileText,
+} from 'lucide-react';
 
 const SEVERITY_OPTIONS = [
-  { value: 'HIGH', label: '🔴 Alta' },
-  { value: 'MEDIUM', label: '🟡 Media' },
-  { value: 'LOW', label: '🟢 Baja' },
+  { value: 'HIGH', label: 'Alta', dot: 'bg-red-500' },
+  { value: 'MEDIUM', label: 'Media', dot: 'bg-amber-500' },
+  { value: 'LOW', label: 'Baja', dot: 'bg-emerald-500' },
 ];
 
 const TYPE_OPTIONS = [
-  { value: 'FORESTAL', label: '🌲 Forestal' },
-  { value: 'VIVIENDA', label: '🏠 Vivienda' },
-  { value: 'VEHICULAR', label: '🚗 Vehicular' },
-  { value: 'INDUSTRIAL', label: '🏭 Industrial' },
-  { value: 'OTRO', label: '❓ Otro' },
+  { value: 'FORESTAL', label: 'Forestal', icon: TreePine },
+  { value: 'VIVIENDA', label: 'Vivienda', icon: Home },
+  { value: 'VEHICULAR', label: 'Vehicular', icon: Car },
+  { value: 'INDUSTRIAL', label: 'Industrial', icon: Factory },
+  { value: 'OTRO', label: 'Otro', icon: HelpCircle },
 ];
+
+const STATUS_FILTERS = ['ACTIVO', 'EN_COMBATE', 'CONTROLADO', 'EXTINGUIDO'];
+
+const STATUS_STYLES = {
+  ACTIVO: 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400',
+  EN_COMBATE: 'bg-amber-50 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400',
+  CONTROLADO: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
+  EXTINGUIDO: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
+};
+
+const TYPE_ICON_STYLES = {
+  FORESTAL: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
+  VIVIENDA: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
+  VEHICULAR: 'bg-amber-50 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400',
+  INDUSTRIAL: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+  OTRO: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+};
 
 export default function ReportsPage() {
   const [reports, setReports] = useState([]);
+  const [filter, setFilter] = useState('ALL');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     latitude: '',
@@ -33,12 +54,23 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [locationStatus, setLocationStatus] = useState('idle');
-  const { logout, email } = useAuth();
-  const navigate = useNavigate();
+  const [locationLabel, setLocationLabel] = useState('');
+  const [addresses, setAddresses] = useState({});
+  const { email } = useAuth();
 
   useEffect(() => {
     fetchReports();
   }, []);
+
+  useEffect(() => {
+    reports.forEach((r) => {
+      if (r.latitude && r.longitude && !addresses[r.id]) {
+        reverseGeocode(r.latitude, r.longitude).then((label) => {
+          setAddresses((prev) => ({ ...prev, [r.id]: label }));
+        });
+      }
+    });
+  }, [reports]);
 
   const fetchReports = async () => {
     try {
@@ -51,18 +83,17 @@ export default function ReportsPage() {
 
   const getLocation = () => {
     setLocationStatus('loading');
+    setLocationLabel('');
     if (!navigator.geolocation) {
       setLocationStatus('error');
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setForm((prev) => ({
-          ...prev,
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        }));
+        const { latitude, longitude } = position.coords;
+        setForm((prev) => ({ ...prev, latitude, longitude }));
         setLocationStatus('success');
+        reverseGeocode(latitude, longitude).then(setLocationLabel);
       },
       (err) => {
         console.error('Error de geolocalización', err);
@@ -80,6 +111,7 @@ export default function ReportsPage() {
     setShowForm(false);
     setForm({ latitude: '', longitude: '', description: '', severity: 'MEDIUM', incidentType: 'OTRO', mediaUrls: [] });
     setLocationStatus('idle');
+    setLocationLabel('');
     setError('');
   };
 
@@ -104,68 +136,131 @@ export default function ReportsPage() {
     }
   };
 
-  const getStatusColor = (status) => {
-    if (status === 'ACTIVO' || status === 'NEW') return '#e63946';
-    if (status === 'RESUELTO' || status === 'CLOSED') return '#2a9d8f';
-    return '#f4a261';
-  };
+  const getSeverityInfo = (sev) => SEVERITY_OPTIONS.find(o => o.value === sev);
+  const getTypeInfo = (type) => TYPE_OPTIONS.find(o => o.value === type);
+  const filtered = filter === 'ALL' ? reports : reports.filter(r => r.status === filter);
 
-  const getSeverityLabel = (sev) => {
-    const found = SEVERITY_OPTIONS.find(o => o.value === sev);
-    return found ? found.label : sev;
-  };
-
-  const getTypeLabel = (type) => {
-    const found = TYPE_OPTIONS.find(o => o.value === type);
-    return found ? found.label : type;
-  };
+  const inputClasses = "w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-red-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white";
+  const labelClasses = "text-sm font-semibold text-slate-600 dark:text-slate-300";
 
   return (
-    <div style={styles.container}>
-      <Navbar />
-
-      <div style={styles.content}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>📋 Reportes de Incendios</h1>
-          <button style={styles.btnNew} onClick={openForm}>+ Nuevo Reporte</button>
+    <Layout>
+      <div className="px-6 py-8 sm:px-10">
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              Reportes de Incendios
+            </h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{filtered.length} de {reports.length} reportes</p>
+          </div>
+          <button
+            onClick={openForm}
+            className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-600/20 transition-colors hover:bg-red-700"
+          >
+            <Plus size={16} strokeWidth={2.5} /> Nuevo Reporte
+          </button>
         </div>
 
-        <div style={styles.reportsList}>
-          {reports.length === 0 ? (
-            <p style={styles.empty}>No hay reportes aún.</p>
+        <div className="mb-6 flex flex-wrap gap-2">
+          <button
+            onClick={() => setFilter('ALL')}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
+              filter === 'ALL'
+                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
+            }`}
+          >
+            Todos
+          </button>
+          {STATUS_FILTERS.map((s) => (
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
+                filter === s
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700'
+              }`}
+            >
+              {s.replace('_', ' ')}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-16">
+              <FileText size={32} strokeWidth={1.6} className="text-slate-400 dark:text-slate-600" />
+              <p className="text-slate-400 dark:text-slate-500">No hay reportes que coincidan con el filtro.</p>
+            </div>
           ) : (
-            reports.map((report) => (
-              <div key={report.id} style={styles.reportCard}>
-                <div style={styles.reportHeader}>
-                  <span style={{ ...styles.badge, backgroundColor: getStatusColor(report.status) }}>
-                    {report.status}
-                  </span>
-                  <span style={styles.date}>
-                    {new Date(report.createdAt).toLocaleDateString('es-CL')}
-                  </span>
+            filtered.map((report) => {
+              const typeInfo = getTypeInfo(report.incidentType);
+              const severityInfo = getSeverityInfo(report.severity);
+              return (
+                <div
+                  key={report.id}
+                  className="flex gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                >
+                  {typeInfo && (
+                    <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg ${TYPE_ICON_STYLES[report.incidentType]}`}>
+                      <typeInfo.icon size={19} strokeWidth={2} />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-display font-bold text-slate-900 dark:text-white">
+                          {typeInfo?.label || 'Incidente'}
+                        </span>
+                        <span className={`rounded-full px-2.5 py-0.5 text-[0.7rem] font-bold tracking-wide ${STATUS_STYLES[report.status] || 'bg-slate-100 text-slate-500 dark:bg-slate-800'}`}>
+                          {report.status}
+                        </span>
+                        {severityInfo && (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 dark:text-slate-500">
+                            <span className={`h-1.5 w-1.5 rounded-full ${severityInfo.dot}`} />
+                            {severityInfo.label}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">
+                        {new Date(report.createdAt).toLocaleDateString('es-CL')}
+                      </span>
+                    </div>
+                    {report.description && (
+                      <p className="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{report.description}</p>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-5">
+                      <p className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+                        <MapPin size={13} strokeWidth={2} /> {addresses[report.id] || 'Buscando dirección...'}
+                      </p>
+                      <p className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+                        <User size={13} strokeWidth={2} /> {report.reporterEmail}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div style={styles.tagsRow}>
-                  {report.severity && <span style={styles.tag}>{getSeverityLabel(report.severity)}</span>}
-                  {report.incidentType && <span style={styles.tag}>{getTypeLabel(report.incidentType)}</span>}
-                </div>
-                {report.description && <p style={styles.reportDesc}>{report.description}</p>}
-                <p style={styles.reportMeta}>📍 {report.latitude}, {report.longitude}</p>
-                <p style={styles.reportMeta}>👤 {report.reporterEmail}</p>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
 
       {showForm && (
-        <div style={styles.overlay} onClick={closeForm}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h3 style={styles.formTitle}>Nuevo Reporte</h3>
-            <form onSubmit={handleSubmit}>
-              <div style={styles.field}>
-                <label>Tipo de incendio</label>
+        <div
+          onClick={closeForm}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[90vh] w-full max-w-[450px] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-7 shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+          >
+            <h3 className="font-display mb-5 text-lg font-extrabold text-slate-900 dark:text-white">Nuevo Reporte</h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className={labelClasses}>Tipo de incendio</label>
                 <select
-                  style={styles.input}
+                  className={inputClasses}
                   value={form.incidentType}
                   onChange={(e) => setForm({ ...form, incidentType: e.target.value })}
                 >
@@ -175,10 +270,10 @@ export default function ReportsPage() {
                 </select>
               </div>
 
-              <div style={styles.field}>
-                <label>Prioridad</label>
+              <div className="space-y-1.5">
+                <label className={labelClasses}>Prioridad</label>
                 <select
-                  style={styles.input}
+                  className={inputClasses}
                   value={form.severity}
                   onChange={(e) => setForm({ ...form, severity: e.target.value })}
                 >
@@ -188,39 +283,61 @@ export default function ReportsPage() {
                 </select>
               </div>
 
-              <div style={styles.field}>
-                <label>Descripción (opcional)</label>
+              <div className="space-y-1.5">
+                <label className={labelClasses}>Descripción (opcional)</label>
                 <textarea
-                  style={{ ...styles.input, resize: 'vertical', minHeight: '70px' }}
+                  className={`${inputClasses} min-h-[70px] resize-y`}
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="Detalles adicionales del incendio..."
                 />
               </div>
 
-              <div style={styles.field}>
-                <label>Ubicación</label>
-                {locationStatus === 'loading' && <p style={{ color: '#888', fontSize: '0.85rem' }}>📍 Detectando ubicación...</p>}
+              <div className="space-y-1.5">
+                <label className={labelClasses}>Ubicación</label>
+                {locationStatus === 'loading' && (
+                  <p className="flex items-center gap-1.5 text-sm text-slate-400 dark:text-slate-500">
+                    <MapPin size={14} strokeWidth={2} /> Detectando ubicación...
+                  </p>
+                )}
                 {locationStatus === 'success' && (
-                  <p style={{ color: '#2a9d8f', fontSize: '0.85rem' }}>
-                    ✅ {form.latitude?.toFixed(5)}, {form.longitude?.toFixed(5)}
+                  <p className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 size={14} strokeWidth={2} />
+                    {locationLabel || 'Buscando dirección...'}
                   </p>
                 )}
                 {locationStatus === 'error' && (
                   <div>
-                    <p style={{ color: '#e63946', fontSize: '0.85rem' }}>
-                      ❌ No se pudo obtener la ubicación. Activa el GPS y los permisos del navegador.
+                    <p className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
+                      <XCircle size={14} strokeWidth={2} />
+                      No se pudo obtener la ubicación. Activa el GPS y los permisos del navegador.
                     </p>
-                    <button type="button" style={styles.btnSmall} onClick={getLocation}>Reintentar</button>
+                    <button
+                      type="button"
+                      onClick={getLocation}
+                      className="mt-2 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                    >
+                      Reintentar
+                    </button>
                   </div>
                 )}
               </div>
 
-              {error && <p style={styles.error}>{error}</p>}
+              {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-              <div style={styles.modalActions}>
-                <button type="button" style={styles.btnCancel} onClick={closeForm}>Cancelar</button>
-                <button style={styles.btnSubmit} type="submit" disabled={loading}>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="rounded-lg bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-red-600/20 transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
                   {loading ? 'Enviando...' : 'Crear Reporte'}
                 </button>
               </div>
@@ -228,141 +345,6 @@ export default function ReportsPage() {
           </div>
         </div>
       )}
-
-      <Footer />
-    </div>
+    </Layout>
   );
 }
-
-const styles = {
-  container: { minHeight: '100vh', backgroundColor: '#f0f2f5', display: 'flex', flexDirection: 'column' },
-  navbar: {
-    backgroundColor: '#e63946',
-    padding: '1rem 2rem',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  logo: { color: 'white', margin: 0, cursor: 'pointer' },
-  navLinks: { display: 'flex', gap: '1rem' },
-  navBtn: {
-    backgroundColor: 'transparent',
-    border: '1px solid white',
-    color: 'white',
-    padding: '0.5rem 1rem',
-    borderRadius: '8px',
-    cursor: 'pointer',
-  },
-  navBtnRed: {
-    backgroundColor: 'white',
-    border: 'none',
-    color: '#e63946',
-    padding: '0.5rem 1rem',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-  },
-  content: { padding: '2rem', flex: 1 },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' },
-  title: { color: '#333', margin: 0 },
-  btnNew: {
-    backgroundColor: '#e63946',
-    color: 'white',
-    border: 'none',
-    padding: '0.6rem 1.2rem',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-  },
-  reportsList: { display: 'flex', flexDirection: 'column', gap: '1rem' },
-  empty: { color: '#888', textAlign: 'center', marginTop: '2rem' },
-  reportCard: {
-    backgroundColor: 'white',
-    padding: '1.2rem',
-    borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
-  },
-  reportHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' },
-  badge: {
-    color: 'white',
-    padding: '0.25rem 0.75rem',
-    borderRadius: '20px',
-    fontSize: '0.8rem',
-    fontWeight: 'bold',
-  },
-  date: { color: '#888', fontSize: '0.85rem' },
-  tagsRow: { display: 'flex', gap: '0.5rem', margin: '0.5rem 0' },
-  tag: {
-    backgroundColor: '#f0f2f5',
-    color: '#555',
-    padding: '0.2rem 0.7rem',
-    borderRadius: '20px',
-    fontSize: '0.8rem',
-  },
-  reportDesc: { margin: '0.5rem 0', color: '#333' },
-  reportMeta: { margin: '0.25rem 0', color: '#666', fontSize: '0.85rem' },
-  error: { color: 'red', fontSize: '0.875rem' },
-
-  // Modal
-  overlay: {
-    position: 'fixed',
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-  modal: {
-    backgroundColor: 'white',
-    borderRadius: '16px',
-    padding: '2rem',
-    width: '100%',
-    maxWidth: '450px',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
-    maxHeight: '90vh',
-    overflowY: 'auto',
-  },
-  formTitle: { marginTop: 0, color: '#333', marginBottom: '1.25rem' },
-  field: { display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1rem' },
-  input: {
-    padding: '0.6rem 0.8rem',
-    borderRadius: '8px',
-    border: '1px solid #ccc',
-    fontSize: '0.95rem',
-    fontFamily: 'inherit',
-  },
-  modalActions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '0.75rem',
-    marginTop: '1.5rem',
-  },
-  btnCancel: {
-    backgroundColor: 'transparent',
-    border: '1px solid #ccc',
-    color: '#666',
-    padding: '0.6rem 1.2rem',
-    borderRadius: '8px',
-    cursor: 'pointer',
-  },
-  btnSubmit: {
-    backgroundColor: '#e63946',
-    color: 'white',
-    border: 'none',
-    padding: '0.6rem 1.5rem',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-  },
-  btnSmall: {
-    backgroundColor: '#e63946',
-    color: 'white',
-    border: 'none',
-    padding: '0.3rem 0.8rem',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    marginTop: '0.3rem',
-  },
-};
