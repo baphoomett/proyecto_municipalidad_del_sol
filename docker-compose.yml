@@ -15,6 +15,7 @@ services:
         ipv4_address: 172.20.0.2
 
   ms_usuarios:
+    image: maxxito/ms_usuarios:latest
     build:
       context: ./ms_usuarios
     environment:
@@ -45,6 +46,7 @@ services:
         ipv4_address: 172.20.0.3
 
   ms_reportes:
+    image: maxxito/ms_reportes:latest
     build:
       context: ./ms_reportes
     environment:
@@ -78,6 +80,7 @@ services:
         ipv4_address: 172.20.0.4
 
   ms_monitoreo:
+    image: maxxito/ms_monitoreo:latest
     build:
       context: ./ms_monitoreo
     environment:
@@ -90,6 +93,7 @@ services:
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
       - postgres_ms_monitoreo
+      - rabbitmq
     ports:
       - "8182:8080"
     networks:
@@ -123,6 +127,7 @@ services:
         ipv4_address: 172.20.0.5
 
   ms_alertas:
+    image: maxxito/ms_alertas:latest
     build:
       context: ./ms_alertas
     environment:
@@ -137,29 +142,46 @@ services:
       SPRING_MAIL_PASSWORD: trfgcxcgugpxoqhv
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
-      ALERT_EMAIL_TO:  maxibrocklestt7@gmail.com,be.morenop@duocuc.cl
+      ALERT_EMAIL_TO: maxibrocklestt7@gmail.com,be.morenop@duocuc.cl
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
     depends_on:
       - postgres_ms_alertas
       - rabbitmq
       - mailhog
     ports:
-      - "8083:8080"
+      - "8083:8083"
     networks:
       municipalidad_net:
         ipv4_address: 172.20.0.13
 
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      municipalidad_net:
+        ipv4_address: 172.20.0.15
+
   ms_integracion:
+    image: maxxito/ms_integracion:latest
     build:
       context: ./ms_integracion
     environment:
       RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_HOST: rabbitmq
-      MINIO_ENDPOINT: http://localhost:9000
+      MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESSKEY: minioadmin
       MINIO_SECRETKEY: minioadmin
     depends_on:
       - rabbitmq
+      - minio
     ports:
       - "8090:8090"
     networks:
@@ -176,6 +198,7 @@ services:
         ipv4_address: 172.20.0.6
 
   api_gateway:
+    image: maxxito/api_gateway:latest
     build:
       context: ./api_gateway
     environment:
@@ -183,8 +206,6 @@ services:
       SERVER_PORT: 8085
       SPRING_CLOUD_GATEWAY_HTTPCLIENT_SSL_USEINSECURETRUSTMANAGER: "true"
       JVM_OPTS: "-Djava.net.preferIPv4Stack=true"
-    dns:
-      - 127.0.0.11
     depends_on:
       - ms_usuarios
       - ms_reportes
@@ -197,22 +218,36 @@ services:
       municipalidad_net:
         ipv4_address: 172.20.0.20
 
-
   bff:
-      build:
-        context: ./bff
-      environment:
-        SPRING_APPLICATION_NAME: bff
-        SERVER_PORT: 8086
-        API_GATEWAY_URL: http://172.20.0.20:8085
-        JWT_SECRET: changeitchangethischangethisisverysecretkeyforjwthmacsha256algorithm
-      depends_on:
-        - api_gateway
-      ports:
-        - "8086:8086"
-      networks:
-        municipalidad_net:
-          ipv4_address: 172.20.0.21
+    image: maxxito/bff:latest
+    build:
+      context: ./bff
+    environment:
+      SPRING_APPLICATION_NAME: bff
+      SERVER_PORT: 8086
+      API_GATEWAY_URL: http://172.20.0.20:8085
+      JWT_SECRET: changeitchangethischangethisisverysecretkeyforjwthmacsha256algorithm
+    depends_on:
+      - api_gateway
+    ports:
+      - "8086:8086"
+    networks:
+      municipalidad_net:
+        ipv4_address: 172.20.0.21
+
+  frontend:
+    image: maxxito/frontend:latest
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ""
+    depends_on:
+      - bff
+    ports:
+      - "80:80"
+    networks:
+      municipalidad_net:
+        ipv4_address: 172.20.0.22
 
 volumes:
   pgdata_usuarios:
@@ -220,6 +255,7 @@ volumes:
   uploads:
   pgdata_alertas:
   pgdata_monitoreo:
+  minio_data:
 
 networks:
   municipalidad_net:
