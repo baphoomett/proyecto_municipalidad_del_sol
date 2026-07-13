@@ -20,6 +20,7 @@ public class AlertService {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
         HttpEntity<?> request = new HttpEntity<>(headers);
-        return restTemplate.exchange(gatewayUrl + "/api/alerts", HttpMethod.GET, request, Object.class);
+        ResponseEntity<Object> up = restTemplate.exchange(gatewayUrl + "/api/alerts", HttpMethod.GET, request, Object.class);
+        return ResponseEntity.status(up.getStatusCode()).body(up.getBody());
     }
 }

@@ -12,7 +12,12 @@ services:
       - "5432:5432"
     networks:
       municipalidad_net:
-        ipv4_address: 172.20.0.2
+        ipv4_address: 172.28.0.2
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   ms_usuarios:
     image: maxxito/ms_usuarios:latest
@@ -24,12 +29,19 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       JWT_SECRET: changeitchangethischangethisisverysecretkeyforjwthmacsha256algorithm
     depends_on:
-      - postgres_ms_usuarios
+      postgres_ms_usuarios:
+        condition: service_healthy
     ports:
       - "8084:8080"
     networks:
       municipalidad_net:
-        ipv4_address: 172.20.0.10
+        ipv4_address: 172.28.0.10
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
 
   postgres_ms_reportes:
     image: postgres:15
@@ -43,7 +55,12 @@ services:
       - "5433:5432"
     networks:
       municipalidad_net:
-        ipv4_address: 172.20.0.3
+        ipv4_address: 172.28.0.3
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   ms_reportes:
     image: maxxito/ms_reportes:latest
@@ -58,12 +75,19 @@ services:
     volumes:
       - uploads:/data/uploads
     depends_on:
-      - postgres_ms_reportes
+      postgres_ms_reportes:
+        condition: service_healthy
     ports:
       - "8081:8080"
     networks:
       municipalidad_net:
-        ipv4_address: 172.20.0.11
+        ipv4_address: 172.28.0.11
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
 
   postgres_ms_monitoreo:
     image: postgis/postgis:15-3.3
@@ -77,7 +101,30 @@ services:
       - "5434:5432"
     networks:
       municipalidad_net:
-        ipv4_address: 172.20.0.4
+        ipv4_address: 172.28.0.4
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      municipalidad_net:
+        ipv4_address: 172.28.0.7
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   ms_monitoreo:
     image: maxxito/ms_monitoreo:latest
@@ -92,25 +139,21 @@ services:
       RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
-      - postgres_ms_monitoreo
-      - rabbitmq
+      postgres_ms_monitoreo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     ports:
       - "8182:8080"
     networks:
       municipalidad_net:
-        ipv4_address: 172.20.0.12
-
-  rabbitmq:
-    image: rabbitmq:3-management
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    networks:
-      municipalidad_net:
-        ipv4_address: 172.20.0.7
+        ipv4_address: 172.28.0.12
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
 
   postgres_ms_alertas:
     image: postgres:15
@@ -124,7 +167,21 @@ services:
       - "5435:5432"
     networks:
       municipalidad_net:
-        ipv4_address: 172.20.0.5
+        ipv4_address: 172.28.0.5
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      municipalidad_net:
+        ipv4_address: 172.28.0.6
 
   ms_alertas:
     image: maxxito/ms_alertas:latest
@@ -145,14 +202,23 @@ services:
       ALERT_EMAIL_TO: maxibrocklestt7@gmail.com,be.morenop@duocuc.cl
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
     depends_on:
-      - postgres_ms_alertas
-      - rabbitmq
-      - mailhog
+      postgres_ms_alertas:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
     ports:
       - "8083:8083"
     networks:
       municipalidad_net:
-        ipv4_address: 172.20.0.13
+        ipv4_address: 172.28.0.13
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8083' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
 
   minio:
     image: minio/minio
@@ -167,7 +233,12 @@ services:
       - minio_data:/data
     networks:
       municipalidad_net:
-        ipv4_address: 172.20.0.15
+        ipv4_address: 172.28.0.15
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/9000' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   ms_integracion:
     image: maxxito/ms_integracion:latest
@@ -180,22 +251,21 @@ services:
       MINIO_ACCESSKEY: minioadmin
       MINIO_SECRETKEY: minioadmin
     depends_on:
-      - rabbitmq
-      - minio
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     ports:
       - "8090:8090"
     networks:
       municipalidad_net:
-        ipv4_address: 172.20.0.14
-
-  mailhog:
-    image: mailhog/mailhog
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    networks:
-      municipalidad_net:
-        ipv4_address: 172.20.0.6
+        ipv4_address: 172.28.0.14
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8090' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
 
   api_gateway:
     image: maxxito/api_gateway:latest
@@ -207,16 +277,27 @@ services:
       SPRING_CLOUD_GATEWAY_HTTPCLIENT_SSL_USEINSECURETRUSTMANAGER: "true"
       JVM_OPTS: "-Djava.net.preferIPv4Stack=true"
     depends_on:
-      - ms_usuarios
-      - ms_reportes
-      - ms_monitoreo
-      - ms_alertas
-      - ms_integracion
+      ms_usuarios:
+        condition: service_healthy
+      ms_reportes:
+        condition: service_healthy
+      ms_monitoreo:
+        condition: service_healthy
+      ms_alertas:
+        condition: service_healthy
+      ms_integracion:
+        condition: service_healthy
     ports:
       - "8085:8085"
     networks:
       municipalidad_net:
-        ipv4_address: 172.20.0.20
+        ipv4_address: 172.28.0.20
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8085' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   bff:
     image: maxxito/bff:latest
@@ -225,15 +306,22 @@ services:
     environment:
       SPRING_APPLICATION_NAME: bff
       SERVER_PORT: 8086
-      API_GATEWAY_URL: http://172.20.0.20:8085
+      API_GATEWAY_URL: http://172.28.0.20:8085
       JWT_SECRET: changeitchangethischangethisisverysecretkeyforjwthmacsha256algorithm
     depends_on:
-      - api_gateway
+      api_gateway:
+        condition: service_healthy
     ports:
       - "8086:8086"
     networks:
       municipalidad_net:
-        ipv4_address: 172.20.0.21
+        ipv4_address: 172.28.0.21
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8086' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   frontend:
     image: maxxito/frontend:latest
@@ -242,12 +330,13 @@ services:
       args:
         VITE_API_URL: ""
     depends_on:
-      - bff
+      bff:
+        condition: service_healthy
     ports:
       - "80:80"
     networks:
       municipalidad_net:
-        ipv4_address: 172.20.0.22
+        ipv4_address: 172.28.0.22
 
 volumes:
   pgdata_usuarios:
@@ -262,4 +351,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.28.0.0/16

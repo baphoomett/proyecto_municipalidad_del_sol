@@ -22,14 +22,16 @@ public class ReportService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(token);
         HttpEntity<ReportDto> request = new HttpEntity<>(dto, headers);
-        return restTemplate.postForEntity(gatewayUrl + "/api/reports", request, Object.class);
+        ResponseEntity<Object> up = restTemplate.postForEntity(gatewayUrl + "/api/reports", request, Object.class);
+        return ResponseEntity.status(up.getStatusCode()).body(up.getBody());
     }
 
     public ResponseEntity<?> getReports(String token) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
         HttpEntity<?> request = new HttpEntity<>(headers);
-        return restTemplate.exchange(gatewayUrl + "/api/reports", HttpMethod.GET, request, Object.class);
+        ResponseEntity<Object> up = restTemplate.exchange(gatewayUrl + "/api/reports", HttpMethod.GET, request, Object.class);
+        return ResponseEntity.status(up.getStatusCode()).body(up.getBody());
     }
 
     public ResponseEntity<?> updateStatus(Long id, String status, String token) {
@@ -39,7 +41,8 @@ public class ReportService {
         java.util.Map<String, String> body = new java.util.HashMap<>();
         body.put("status", status);
         HttpEntity<java.util.Map<String, String>> request = new HttpEntity<>(body, headers);
-        return restTemplate.exchange(gatewayUrl + "/api/reports/" + id + "/status", HttpMethod.PATCH, request, Object.class);
+        ResponseEntity<Object> up = restTemplate.exchange(gatewayUrl + "/api/reports/" + id + "/status", HttpMethod.PATCH, request, Object.class);
+        return ResponseEntity.status(up.getStatusCode()).body(up.getBody());
     }
 
     public ResponseEntity<?> extinguishReport(Long id, String token) {
@@ -58,11 +61,12 @@ public class ReportService {
             // si no existe alerta asociada, o ms_alertas falla, no debe bloquear el borrado del reporte
         }
 
-        return restTemplate.exchange(
+        ResponseEntity<Void> up = restTemplate.exchange(
             gatewayUrl + "/api/reports/" + id,
             HttpMethod.DELETE,
             request,
             Void.class
         );
+        return ResponseEntity.status(up.getStatusCode()).build();
     }
 }

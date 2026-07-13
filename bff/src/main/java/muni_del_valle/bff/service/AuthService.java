@@ -24,13 +24,15 @@ public class AuthService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<AuthDto> request = new HttpEntity<>(dto, headers);
-        return restTemplate.postForEntity(gatewayUrl + "/api/auth/login", request, Object.class);
+        ResponseEntity<Object> upstream = restTemplate.postForEntity(gatewayUrl + "/api/auth/login", request, Object.class);
+        return ResponseEntity.status(upstream.getStatusCode()).body(upstream.getBody());
     }
 
     public ResponseEntity<?> register(AuthDto dto) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<AuthDto> request = new HttpEntity<>(dto, headers);
-        return restTemplate.postForEntity(gatewayUrl + "/api/auth/register", request, Object.class);
+        ResponseEntity<Object> upstream = restTemplate.postForEntity(gatewayUrl + "/api/auth/register", request, Object.class);
+        return ResponseEntity.status(upstream.getStatusCode()).body(upstream.getBody());
     }
 }
