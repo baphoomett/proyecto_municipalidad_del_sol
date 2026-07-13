@@ -242,4 +242,46 @@ class ReportServiceTest {
 
         assertThat(result).isEmpty();
     }
+
+    @Test
+    void deleteReport_reporteExistente_deberiaEliminarYRetornarTrue() {
+        Report report = new Report();
+        report.setId(20L);
+        when(reportRepository.findById(20L)).thenReturn(Optional.of(report));
+
+        boolean result = reportService.deleteReport(20L);
+
+        assertThat(result).isTrue();
+        verify(eventRepository).deleteByReportId(20L);
+        verify(reportRepository).delete(report);
+    }
+
+    @Test
+    void deleteReport_reporteInexistente_deberiaRetornarFalse() {
+        when(reportRepository.findById(999L)).thenReturn(Optional.empty());
+
+        boolean result = reportService.deleteReport(999L);
+
+        assertThat(result).isFalse();
+        verify(eventRepository, never()).deleteByReportId(any());
+        verify(reportRepository, never()).delete(any(Report.class));
+    }
+
+    @Test
+    void addEvent_conTipoEventoInvalido_deberiaGuardarEventoSinActualizarStatus() {
+        Report report = new Report();
+        report.setId(10L);
+        report.setStatus(ReportStatus.ACTIVO);
+
+        CreateEventRequest req = new CreateEventRequest();
+        req.setType("TIPO_QUE_NO_EXISTE");
+
+        when(reportRepository.findById(10L)).thenReturn(Optional.of(report));
+        when(eventRepository.save(any(Event.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Optional<Event> result = reportService.addEvent(10L, req);
+
+        assertThat(result).isPresent();
+        assertThat(report.getStatus()).isEqualTo(ReportStatus.ACTIVO);
+    }
 }

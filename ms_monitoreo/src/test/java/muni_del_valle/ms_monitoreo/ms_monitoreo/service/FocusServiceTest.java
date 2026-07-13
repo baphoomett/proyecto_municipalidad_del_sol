@@ -15,6 +15,8 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import org.springframework.test.util.ReflectionTestUtils;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -146,5 +148,29 @@ class FocusServiceTest {
         SseEmitter emitter = focusService.subscribe();
 
         assertThat(emitter).isNotNull();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void createFocus_cuandoEmitterLanzaIOException_deberiaEliminarloYContinuar() throws Exception {
+        SseEmitter mockEmitter = mock(SseEmitter.class);
+        doThrow(new java.io.IOException("emitter closed"))
+                .when(mockEmitter).send(any(SseEmitter.SseEventBuilder.class));
+
+        List<SseEmitter> emitters = (List<SseEmitter>) ReflectionTestUtils.getField(focusService, "emitters");
+        emitters.add(mockEmitter);
+
+        CreateFocusRequest req = buildRequest();
+        when(focusRepository.save(any(Focus.class))).thenAnswer(inv -> {
+            Focus f = inv.getArgument(0);
+            f.setId(3L);
+            return f;
+        });
+
+        Focus result = focusService.createFocus(req);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(3L);
+        assertThat(emitters).doesNotContain(mockEmitter);
     }
 }

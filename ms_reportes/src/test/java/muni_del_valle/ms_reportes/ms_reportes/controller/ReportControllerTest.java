@@ -21,6 +21,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.mock.web.MockMultipartFile;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -137,6 +139,66 @@ class ReportControllerTest {
         mockMvc.perform(patch("/api/reports/8/status")
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void createReportForm_sinArchivos_deberiaRetornar201() throws Exception {
+        Report saved = buildReport(10L);
+        when(reportService.createReport(any(CreateReportRequest.class))).thenReturn(saved);
+
+        mockMvc.perform(multipart("/api/reports/form")
+                        .param("reporterEmail", "form@test.cl")
+                        .param("description", "Reporte por formulario"))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void createReportForm_conArchivos_deberiaRetornar201() throws Exception {
+        Report saved = buildReport(11L);
+        MockMultipartFile file = new MockMultipartFile("files", "foto.jpg",
+                "image/jpeg", "contenido".getBytes());
+        when(uploadService.saveAll(any())).thenReturn(java.util.List.of("http://media/foto.jpg"));
+        when(reportService.createReport(any(CreateReportRequest.class))).thenReturn(saved);
+
+        mockMvc.perform(multipart("/api/reports/form").file(file)
+                        .param("description", "Reporte con foto"))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void createReportForm_cuandoServiceLanzaIllegalArgument_deberiaRetornar400() throws Exception {
+        when(reportService.createReport(any(CreateReportRequest.class)))
+                .thenThrow(new IllegalArgumentException("Datos inválidos"));
+
+        mockMvc.perform(multipart("/api/reports/form")
+                        .param("description", "Reporte malo"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createReportForm_cuandoServiceLanzaExcepcionGenerica_deberiaRetornar500() throws Exception {
+        when(reportService.createReport(any(CreateReportRequest.class)))
+                .thenThrow(new RuntimeException("Error inesperado"));
+
+        mockMvc.perform(multipart("/api/reports/form")
+                        .param("description", "Reporte con error"))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void deleteReport_existente_deberiaRetornar204() throws Exception {
+        when(reportService.deleteReport(3L)).thenReturn(true);
+
+        mockMvc.perform(delete("/api/reports/3"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deleteReport_noExistente_deberiaRetornar404() throws Exception {
+        when(reportService.deleteReport(99L)).thenReturn(false);
+
+        mockMvc.perform(delete("/api/reports/99"))
                 .andExpect(status().isNotFound());
     }
 
